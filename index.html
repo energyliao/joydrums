@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>✨ 每日簽到 — 好習慣養成站</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --pink:#FF6B9D;--yellow:#FFD93D;--mint:#6BCB77;--sky:#4FC3F7;--purple:#B39DDB;--orange:#FFB347;--coral:#FF7B7B;
+  --bg:#FFF9F0;--card:#FFFFFF;--text:#3D2B1F;--muted:#9E8A7E;--border:#F0E8E0;
+  --r:18px;--shadow:0 4px 20px rgba(0,0,0,0.08);
+}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);cursor:none;min-height:100vh;overflow-x:hidden;}
+
+/* CUSTOM CURSOR */
+#cursor{position:fixed;width:36px;height:36px;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);transition:transform 0.1s;font-size:28px;line-height:1;}
+#cursor-trail{position:fixed;pointer-events:none;z-index:99998;}
+.burst-emoji{position:fixed;pointer-events:none;z-index:99997;font-size:24px;animation:burstAnim 0.8s ease-out forwards;}
+@keyframes burstAnim{0%{transform:translate(-50%,-50%) scale(0.5);opacity:1;}100%{transform:translate(-50%,-50%) scale(1.5) translate(var(--dx),var(--dy));opacity:0;}}
+
+/* NAV */
+nav{background:white;border-bottom:2px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:0;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.06);}
+.nav-logo{font-family:'Fredoka One',cursive;font-size:22px;color:var(--pink);margin-right:auto;padding:14px 0;}
+.nav-logo span{color:var(--yellow);}
+.nav-tab{padding:18px 16px;font-weight:700;font-size:14px;color:var(--muted);cursor:none;border-bottom:3px solid transparent;transition:all 0.2s;white-space:nowrap;}
+.nav-tab:hover{color:var(--text);}
+.nav-tab.active{color:var(--pink);border-bottom-color:var(--pink);}
+
+/* PAGES */
+.page{display:none;padding:32px 24px;max-width:900px;margin:0 auto;}
+.page.active{display:block;}
+
+/* SECTION TITLE */
+.section-title{font-family:'Fredoka One',cursive;font-size:28px;margin-bottom:8px;}
+.section-sub{color:var(--muted);font-size:15px;margin-bottom:28px;}
+
+/* CHECKIN CARDS */
+.checkin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;}
+.checkin-card{background:white;border-radius:20px;padding:28px 20px;text-align:center;border:2px solid var(--border);box-shadow:var(--shadow);transition:all 0.25s;cursor:none;position:relative;overflow:hidden;}
+.checkin-card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity 0.3s;}
+.checkin-card.kung::before{background:linear-gradient(135deg,#FFE0EC,#FFB3CC);}
+.checkin-card.meditate::before{background:linear-gradient(135deg,#E0F0FF,#B3D9FF);}
+.checkin-card.sport::before{background:linear-gradient(135deg,#E0FFE8,#B3F0C0);}
+.checkin-card:not(.done):hover{transform:translateY(-4px);box-shadow:0 8px 30px rgba(0,0,0,0.12);}
+.checkin-card:not(.done):hover::before{opacity:1;}
+.checkin-card.done{background:#F5F3F0;border-color:#E0DDD8;cursor:default;}
+.checkin-card.done .checkin-icon{filter:grayscale(1);opacity:0.5;}
+.checkin-card.done .checkin-btn{background:#DDD;color:#AAA;cursor:default;}
+.checkin-icon{font-size:52px;margin-bottom:12px;position:relative;z-index:1;}
+.checkin-label{font-family:'Fredoka One',cursive;font-size:20px;margin-bottom:16px;position:relative;z-index:1;}
+.kung .checkin-label{color:var(--pink);}
+.meditate .checkin-label{color:var(--sky);}
+.sport .checkin-label{color:var(--mint);}
+.checkin-btn{display:inline-block;padding:10px 24px;border-radius:50px;font-weight:800;font-size:14px;border:none;cursor:none;position:relative;z-index:1;transition:all 0.2s;letter-spacing:0.5px;}
+.kung .checkin-btn{background:var(--pink);color:white;}
+.meditate .checkin-btn{background:var(--sky);color:white;}
+.sport .checkin-btn{background:var(--mint);color:white;}
+.checkin-btn:not(:disabled):hover{transform:scale(1.05);}
+.done-badge{position:absolute;top:12px;right:12px;background:#DDD;color:#AAA;font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;z-index:2;}
+
+/* STATS GRID */
+.stats-section{margin-bottom:28px;}
+.stats-label{font-weight:800;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.stat-card{background:white;border-radius:16px;padding:16px;border:2px solid var(--border);text-align:center;}
+.stat-num{font-family:'Fredoka One',cursive;font-size:32px;}
+.stat-cat{font-size:12px;font-weight:700;color:var(--muted);margin-top:2px;}
+.stat-card.kung .stat-num{color:var(--pink);}
+.stat-card.meditate .stat-num{color:var(--sky);}
+.stat-card.sport .stat-num{color:var(--mint);}
+
+/* ACHIEVEMENT */
+.achievements{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:50px;font-size:13px;font-weight:700;border:2px solid transparent;}
+.badge.earned{background:var(--yellow);color:#7A5000;border-color:#F0C000;}
+.badge.locked{background:#F0EDEA;color:#BBB;border-color:#E0DDD8;}
+
+/* PROFILE */
+.username-edit{display:flex;align-items:center;gap:12px;background:white;border-radius:16px;padding:16px 20px;border:2px solid var(--border);margin-bottom:24px;}
+.username-input{font-family:'Fredoka One',cursive;font-size:22px;border:none;outline:none;color:var(--pink);background:transparent;flex:1;min-width:0;}
+.edit-hint{font-size:12px;color:var(--muted);}
+
+/* CALENDAR */
+.cal-wrap{background:white;border-radius:20px;padding:20px;border:2px solid var(--border);box-shadow:var(--shadow);margin-bottom:24px;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.cal-title{font-family:'Fredoka One',cursive;font-size:18px;}
+.cal-nav{background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:6px 14px;font-weight:800;cursor:none;font-size:14px;}
+.cal-nav:hover{background:var(--border);}
+.cal-days-header{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;}
+.cal-day-name{text-align:center;font-size:11px;font-weight:800;color:var(--muted);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-day{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;position:relative;}
+.cal-day.empty{background:transparent;}
+.cal-day.today{border:2px solid var(--pink);}
+.cal-day.has-kung::after{content:'';position:absolute;bottom:3px;left:3px;width:5px;height:5px;border-radius:50%;background:var(--pink);}
+.cal-day.has-meditate::after{content:'';position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--sky);}
+.cal-day.has-sport::after{content:'';position:absolute;bottom:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--mint);}
+.cal-day.all3{background:linear-gradient(135deg,#FFF0F5,#F0FAFF,#F0FFF5);border:2px solid var(--yellow);}
+.cal-day.some{background:#FFFDF0;}
+
+/* MONTHLY CHALLENGE */
+.challenge-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;}
+.challenge-card{background:white;border-radius:16px;padding:16px;border:2px solid var(--border);}
+.challenge-title{font-weight:800;font-size:14px;margin-bottom:6px;}
+.challenge-desc{font-size:12px;color:var(--muted);margin-bottom:10px;}
+.progress-bar-wrap{background:#F0EDEA;border-radius:50px;height:10px;overflow:hidden;}
+.progress-bar{height:100%;border-radius:50px;transition:width 0.5s;}
+.progress-text{font-size:12px;color:var(--muted);margin-top:4px;}
+
+/* LEADERBOARD */
+.lb-card{background:white;border-radius:20px;padding:20px;border:2px solid var(--border);box-shadow:var(--shadow);margin-bottom:20px;}
+.lb-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);}
+.lb-row:last-child{border-bottom:none;}
+.lb-rank{font-family:'Fredoka One',cursive;font-size:22px;min-width:36px;text-align:center;}
+.lb-rank.r1{color:var(--yellow);}
+.lb-rank.r2{color:#C0C0C0;}
+.lb-rank.r3{color:#CD7F32;}
+.lb-avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.lb-name{font-weight:800;font-size:15px;flex:1;}
+.lb-sub{font-size:12px;color:var(--muted);}
+.lb-score{font-family:'Fredoka One',cursive;font-size:20px;color:var(--pink);}
+.lb-badge-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.lb-mini-badge{font-size:10px;background:var(--bg);border-radius:20px;padding:2px 8px;border:1px solid var(--border);}
+
+/* MAP PAGE */
+.map-container{background:white;border-radius:20px;padding:20px;border:2px solid var(--border);box-shadow:var(--shadow);margin-bottom:24px;}
+.taiwan-map{width:100%;max-width:340px;margin:0 auto;display:block;}
+.region-dot{cursor:none;transition:all 0.3s;}
+.region-dot.active{filter:drop-shadow(0 0 8px var(--pink));}
+
+/* QUOTE BOX */
+.quote-box{background:linear-gradient(135deg,#FFE4F0,#FFF0E0);border-radius:20px;padding:24px 28px;border:2px solid #FFD0E0;margin-bottom:24px;text-align:center;}
+.quote-text{font-family:'Fredoka One',cursive;font-size:20px;color:var(--pink);margin-bottom:8px;line-height:1.4;}
+.quote-author{font-size:13px;color:var(--coral);}
+
+/* DISCUSSION */
+.discuss-input-wrap{display:flex;gap:10px;margin-bottom:16px;}
+.discuss-input{flex:1;padding:12px 16px;border-radius:50px;border:2px solid var(--border);font-family:'Nunito',sans-serif;font-size:14px;outline:none;background:white;}
+.discuss-input:focus{border-color:var(--pink);}
+.discuss-send{padding:12px 22px;background:var(--pink);color:white;border:none;border-radius:50px;font-weight:800;font-size:14px;cursor:none;}
+.discuss-send:hover{opacity:0.9;}
+.discuss-list{display:flex;flex-direction:column;gap:10px;}
+.discuss-item{background:white;border-radius:14px;padding:14px 16px;border:2px solid var(--border);display:flex;gap:12px;align-items:flex-start;}
+.discuss-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.discuss-content{flex:1;}
+.discuss-name{font-weight:800;font-size:13px;}
+.discuss-text{font-size:14px;color:var(--text);margin-top:2px;}
+.discuss-time{font-size:11px;color:var(--muted);margin-top:4px;}
+
+/* NOTIFICATION TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:white;border-radius:16px;padding:14px 20px;box-shadow:0 8px 30px rgba(0,0,0,0.15);border-left:4px solid var(--mint);z-index:9999;transform:translateY(100px);opacity:0;transition:all 0.4s;max-width:280px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast-title{font-weight:800;font-size:14px;margin-bottom:2px;}
+.toast-msg{font-size:13px;color:var(--muted);}
+
+/* LEGEND */
+.legend{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;}
+.legend-dot{width:12px;height:12px;border-radius:50%;}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+  .checkin-grid,.stats-grid{grid-template-columns:1fr;}
+  .challenge-grid{grid-template-columns:1fr;}
+  nav{overflow-x:auto;}
+}
+
+/* FLOATING PARTICLES BG */
+.particle{position:fixed;pointer-events:none;z-index:-1;font-size:20px;animation:floatP linear infinite;opacity:0.15;}
+@keyframes floatP{0%{transform:translateY(100vh) rotate(0);opacity:0.15;}100%{transform:translateY(-20px) rotate(360deg);opacity:0;}}
+</style>
+</head>
+<body>
+
+<div id="cursor">😊</div>
+
+<!-- Floating background particles -->
+<div id="particles"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-title" id="toastTitle">🎉 成就解鎖！</div>
+  <div class="toast-msg" id="toastMsg">你太棒了！</div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">✨好<span>習</span>慣</div>
+  <div class="nav-tab active" onclick="showPage('home')" id="tab-home">🏠 每日簽到</div>
+  <div class="nav-tab" onclick="showPage('profile')" id="tab-profile">👤 個人頁面</div>
+  <div class="nav-tab" onclick="showPage('rank')" id="tab-rank">🏆 排名榜單</div>
+  <div class="nav-tab" onclick="showPage('map')" id="tab-map">🗺️ 台灣地圖</div>
+</nav>
+
+<!-- PAGE: HOME -->
+<div class="page active" id="page-home">
+  <h1 class="section-title">🌟 今日簽到</h1>
+  <p class="section-sub">每天打卡，每天進步！點擊下方卡片完成今日簽到 💪</p>
+
+  <div class="checkin-grid">
+    <div class="checkin-card kung" id="card-kung">
+      <span class="done-badge" id="badge-kung" style="display:none">✅ 已簽到</span>
+      <div class="checkin-icon">🥋</div>
+      <div class="checkin-label">我愛練功</div>
+      <button class="checkin-btn" id="btn-kung" onclick="doCheckin('kung',event)">立即簽到</button>
+    </div>
+    <div class="checkin-card meditate" id="card-meditate">
+      <span class="done-badge" id="badge-meditate" style="display:none">✅ 已簽到</span>
+      <div class="checkin-icon">🧘</div>
+      <div class="checkin-label">我愛打坐</div>
+      <button class="checkin-btn" id="btn-meditate" onclick="doCheckin('meditate',event)">立即簽到</button>
+    </div>
+    <div class="checkin-card sport" id="card-sport">
+      <span class="done-badge" id="badge-sport" style="display:none">✅ 已簽到</span>
+      <div class="checkin-icon">🏃</div>
+      <div class="checkin-label">我愛運動</div>
+      <button class="checkin-btn" id="btn-sport" onclick="doCheckin('sport',event)">立即簽到</button>
+    </div>
+  </div>
+
+  <div class="stats-section">
+    <div class="stats-label">📅 今日次數</div>
+    <div class="stats-grid">
+      <div class="stat-card kung"><div class="stat-num" id="today-kung">0</div><div class="stat-cat">🥋 練功</div></div>
+      <div class="stat-card meditate"><div class="stat-num" id="today-meditate">0</div><div class="stat-cat">🧘 打坐</div></div>
+      <div class="stat-card sport"><div class="stat-num" id="today-sport">0</div><div class="stat-cat">🏃 運動</div></div>
+    </div>
+  </div>
+  <div class="stats-section">
+    <div class="stats-label">📆 本週次數</div>
+    <div class="stats-grid">
+      <div class="stat-card kung"><div class="stat-num" id="week-kung">0</div><div class="stat-cat">🥋 練功</div></div>
+      <div class="stat-card meditate"><div class="stat-num" id="week-meditate">0</div><div class="stat-cat">🧘 打坐</div></div>
+      <div class="stat-card sport"><div class="stat-num" id="week-sport">0</div><div class="stat-cat">🏃 運動</div></div>
+    </div>
+  </div>
+  <div class="stats-section">
+    <div class="stats-label">🏅 累計次數</div>
+    <div class="stats-grid">
+      <div class="stat-card kung"><div class="stat-num" id="total-kung">0</div><div class="stat-cat">🥋 練功</div></div>
+      <div class="stat-card meditate"><div class="stat-num" id="total-meditate">0</div><div class="stat-cat">🧘 打坐</div></div>
+      <div class="stat-card sport"><div class="stat-num" id="total-sport">0</div><div class="stat-cat">🏃 運動</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: PROFILE -->
+<div class="page" id="page-profile">
+  <div class="username-edit">
+    <span style="font-size:28px">👤</span>
+    <input class="username-input" id="usernameInput" placeholder="點此輸入你的名字" oninput="updateUsername(this.value)" />
+    <span class="edit-hint">✏️ 點擊可修改</span>
+  </div>
+
+  <h2 class="section-title" style="font-size:22px">🎯 個人簽到統計</h2>
+  <div class="stats-section" style="margin-bottom:8px;">
+    <div class="stats-label">今日</div>
+    <div class="stats-grid">
+      <div class="stat-card kung"><div class="stat-num" id="p-today-kung">0</div><div class="stat-cat">🥋 練功</div></div>
+      <div class="stat-card meditate"><div class="stat-num" id="p-today-meditate">0</div><div class="stat-cat">🧘 打坐</div></div>
+      <div class="stat-card sport"><div class="stat-num" id="p-today-sport">0</div><div class="stat-cat">🏃 運動</div></div>
+    </div>
+  </div>
+  <div class="stats-section" style="margin-bottom:8px;">
+    <div class="stats-label">本週</div>
+    <div class="stats-grid">
+      <div class="stat-card kung"><div class="stat-num" id="p-week-kung">0</div><div class="stat-cat">🥋 練功</div></div>
+      <div class="stat-card meditate"><div class="stat-num" id="p-week-meditate">0</div><div class="stat-cat">🧘 打坐</div></div>
+      <div class="stat-card sport"><div class="stat-num" id="p-week-sport">0</div><div class="stat-cat">🏃 運動</div></div>
+    </div>
+  </div>
+  <div class="stats-section">
+    <div class="stats-label">累計</div>
+    <div class="stats-grid">
+      <div class="stat-card kung"><div class="stat-num" id="p-total-kung">0</div><div class="stat-cat">🥋 練功</div></div>
+      <div class="stat-card meditate"><div class="stat-num" id="p-total-meditate">0</div><div class="stat-cat">🧘 打坐</div></div>
+      <div class="stat-card sport"><div class="stat-num" id="p-total-sport">0</div><div class="stat-cat">🏃 運動</div></div>
+    </div>
+  </div>
+
+  <h2 class="section-title" style="font-size:22px;margin-bottom:12px;">🏅 成就徽章</h2>
+  <div class="achievements" id="achievementsList"></div>
+
+  <h2 class="section-title" style="font-size:22px;margin-bottom:12px;">🎯 本月簽到挑戰</h2>
+  <div class="challenge-grid" id="challengeGrid"></div>
+
+  <h2 class="section-title" style="font-size:22px;margin-bottom:12px;">📅 簽到歷史日曆</h2>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--pink)"></div>練功</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--sky)"></div>打坐</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--mint)"></div>運動</div>
+  </div>
+  <div class="cal-wrap">
+    <div class="cal-header">
+      <button class="cal-nav" onclick="calNav(-1)">◀</button>
+      <div class="cal-title" id="calTitle"></div>
+      <button class="cal-nav" onclick="calNav(1)">▶</button>
+    </div>
+    <div class="cal-days-header">
+      <div class="cal-day-name">日</div><div class="cal-day-name">一</div>
+      <div class="cal-day-name">二</div><div class="cal-day-name">三</div>
+      <div class="cal-day-name">四</div><div class="cal-day-name">五</div>
+      <div class="cal-day-name">六</div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+</div>
+
+<!-- PAGE: RANK -->
+<div class="page" id="page-rank">
+  <h1 class="section-title">🏆 全球排名榜</h1>
+  <p class="section-sub">比拼誰最有毅力！累計簽到次數排名 🔥</p>
+  <div class="lb-card" id="lbList"></div>
+</div>
+
+<!-- PAGE: MAP -->
+<div class="page" id="page-map">
+  <div class="quote-box" id="quoteBox">
+    <div class="quote-text" id="quoteText">正在載入今日勵志小語...</div>
+    <div class="quote-author" id="quoteAuthor"></div>
+  </div>
+
+  <h2 class="section-title" style="font-size:22px;margin-bottom:8px;">🗺️ 台灣簽到熱力圖</h2>
+  <p class="section-sub">哪個城市最積極？點位越亮代表簽到人數越多！</p>
+  <div class="map-container">
+    <svg class="taiwan-map" viewBox="0 0 200 340" xmlns="http://www.w3.org/2000/svg" id="taiwanMap">
+      <!-- Taiwan simplified shape -->
+      <path d="M95,10 L120,20 L135,45 L140,80 L138,120 L145,150 L148,185 L142,220 L130,255 L110,285 L90,305 L75,310 L65,295 L60,270 L68,240 L72,210 L65,180 L60,150 L58,120 L62,90 L70,60 L80,35 Z" fill="#F0F8E8" stroke="#C8E6A0" stroke-width="2"/>
+      <!-- Region dots -->
+      <g id="regionDots">
+        <circle id="dot-taipei" cx="105" cy="55" r="12" fill="#FFB347" opacity="0.5" class="region-dot"/>
+        <text x="105" y="59" text-anchor="middle" font-size="8" fill="#7A5000" font-family="Nunito" font-weight="700">台北</text>
+        <circle id="dot-taoyuan" cx="85" cy="75" r="10" fill="#FF6B9D" opacity="0.4" class="region-dot"/>
+        <text x="85" y="79" text-anchor="middle" font-size="7" fill="#7A001D" font-family="Nunito" font-weight="700">桃園</text>
+        <circle id="dot-hsinchu" cx="78" cy="100" r="9" fill="#B39DDB" opacity="0.4" class="region-dot"/>
+        <text x="78" y="104" text-anchor="middle" font-size="7" fill="#4A2080" font-family="Nunito" font-weight="700">新竹</text>
+        <circle id="dot-taichung" cx="85" cy="150" r="13" fill="#4FC3F7" opacity="0.5" class="region-dot"/>
+        <text x="85" y="154" text-anchor="middle" font-size="8" fill="#003050" font-family="Nunito" font-weight="700">台中</text>
+        <circle id="dot-tainan" cx="90" cy="220" r="11" fill="#6BCB77" opacity="0.4" class="region-dot"/>
+        <text x="90" y="224" text-anchor="middle" font-size="7" fill="#1A5000" font-family="Nunito" font-weight="700">台南</text>
+        <circle id="dot-kaohsiung" cx="95" cy="265" r="13" fill="#FF7B7B" opacity="0.5" class="region-dot"/>
+        <text x="95" y="269" text-anchor="middle" font-size="8" fill="#600000" font-family="Nunito" font-weight="700">高雄</text>
+        <circle id="dot-hualien" cx="135" cy="155" r="9" fill="#FFD93D" opacity="0.4" class="region-dot"/>
+        <text x="135" y="159" text-anchor="middle" font-size="7" fill="#704000" font-family="Nunito" font-weight="700">花蓮</text>
+      </g>
+    </svg>
+    <div id="mapLegend" style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:12px;font-size:12px;font-weight:700;color:var(--muted);"></div>
+  </div>
+
+  <h2 class="section-title" style="font-size:22px;margin-bottom:12px;">💬 激勵討論區</h2>
+  <div class="discuss-input-wrap">
+    <input class="discuss-input" id="discussInput" placeholder="分享你的激勵話語... 💪" maxlength="100"/>
+    <button class="discuss-send" onclick="sendMessage()">發送</button>
+  </div>
+  <div class="discuss-list" id="discussList"></div>
+</div>
+
+<script>
+// ========== STATE ==========
+const CATS = ['kung','meditate','sport'];
+const CAT_EMOJI = {kung:'🥋',meditate:'🧘',sport:'🏃'};
+const CAT_NAME = {kung:'練功',meditate:'打坐',sport:'運動'};
+const REGION_KEYS = ['taipei','taoyuan','hsinchu','taichung','tainan','kaohsiung','hualien'];
+const REGION_NAME = {taipei:'台北',taoyuan:'桃園',hsinchu:'新竹',taichung:'台中',tainan:'台南',kaohsiung:'高雄',hualien:'花蓮'};
+
+function getTodayKey(){
+  const d=new Date();
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+function getWeekKey(){
+  const d=new Date();
+  const day=d.getDay();
+  const diff=d.getDate()-day;
+  return `${d.getFullYear()}-W${Math.ceil(diff/7)+d.getMonth()*5}`;
+}
+
+function loadState(){
+  try{return JSON.parse(localStorage.getItem('checkinState'))||{};}catch{return {};}
+}
+function saveState(s){localStorage.setItem('checkinState',JSON.stringify(s));}
+
+function getState(){
+  let s=loadState();
+  if(!s.totals)s.totals={kung:0,meditate:0,sport:0};
+  if(!s.history)s.history={};
+  if(!s.username)s.username='';
+  if(!s.lastReset)s.lastReset='';
+  if(!s.discussions)s.discussions=[];
+  if(!s.regionCounts)s.regionCounts={taipei:12,taoyuan:8,hsinchu:5,taichung:15,tainan:9,kaohsiung:18,hualien:4};
+  checkDailyReset(s);
+  return s;
+}
+
+function checkDailyReset(s){
+  const today=getTodayKey();
+  if(s.lastReset!==today){
+    s.lastReset=today;
+    s.todayCheckin={kung:false,meditate:false,sport:false};
+  }
+  if(!s.todayCheckin)s.todayCheckin={kung:false,meditate:false,sport:false};
+}
+
+let state=getState();
+
+// ========== CURSOR ==========
+const cursor=document.getElementById('cursor');
+document.addEventListener('mousemove',e=>{
+  cursor.style.left=e.clientX+'px';
+  cursor.style.top=e.clientY+'px';
+});
+
+function burstEmojis(x,y){
+  const emojis=['🎉','⭐','✨','🌟','💥','🎊','❤️','🔥','💪'];
+  for(let i=0;i<12;i++){
+    const el=document.createElement('div');
+    el.className='burst-emoji';
+    el.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+    el.style.left=x+'px';
+    el.style.top=y+'px';
+    const angle=Math.random()*360;
+    const dist=60+Math.random()*80;
+    el.style.setProperty('--dx',Math.cos(angle*Math.PI/180)*dist+'px');
+    el.style.setProperty('--dy',Math.sin(angle*Math.PI/180)*dist+'px');
+    el.style.fontSize=(16+Math.random()*16)+'px';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),900);
+  }
+}
+
+// ========== PARTICLES ==========
+const pContainer=document.getElementById('particles');
+const pEmojis=['⭐','🌸','✨','💫','🌟','🎵','💎'];
+for(let i=0;i<12;i++){
+  const p=document.createElement('div');
+  p.className='particle';
+  p.textContent=pEmojis[i%pEmojis.length];
+  p.style.left=Math.random()*100+'vw';
+  p.style.animationDuration=(8+Math.random()*12)+'s';
+  p.style.animationDelay=(Math.random()*12)+'s';
+  pContainer.appendChild(p);
+}
+
+// ========== CHECKIN ==========
+function doCheckin(cat,event){
+  if(state.todayCheckin[cat])return;
+  state.todayCheckin[cat]=true;
+  state.totals[cat]=(state.totals[cat]||0)+1;
+  const today=getTodayKey();
+  if(!state.history[today])state.history[today]={};
+  state.history[today][cat]=true;
+  // bump random region
+  const r=REGION_KEYS[Math.floor(Math.random()*REGION_KEYS.length)];
+  state.regionCounts[r]=(state.regionCounts[r]||0)+1;
+  saveState(state);
+  updateCheckinUI();
+  updateAllStats();
+  checkAchievements(cat);
+  burstEmojis(event.clientX,event.clientY);
+}
+
+function updateCheckinUI(){
+  CATS.forEach(cat=>{
+    const done=state.todayCheckin[cat];
+    document.getElementById('card-'+cat).classList.toggle('done',done);
+    document.getElementById('badge-'+cat).style.display=done?'':'none';
+    const btn=document.getElementById('btn-'+cat);
+    btn.textContent=done?'✅ 已簽到':'立即簽到';
+    btn.disabled=done;
+  });
+}
+
+// ========== STATS ==========
+function getWeekStats(){
+  const res={kung:0,meditate:0,sport:0};
+  const now=new Date();
+  const dayOfWeek=now.getDay();
+  for(let i=0;i<=dayOfWeek;i++){
+    const d=new Date(now);d.setDate(now.getDate()-i);
+    const key=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    const entry=state.history[key]||{};
+    CATS.forEach(c=>{if(entry[c])res[c]++;});
+  }
+  return res;
+}
+function getTodayStats(){
+  const res={kung:0,meditate:0,sport:0};
+  const today=getTodayKey();
+  const entry=state.history[today]||{};
+  CATS.forEach(c=>{if(entry[c])res[c]=1;});
+  return res;
+}
+
+function updateAllStats(){
+  const today=getTodayStats();
+  const week=getWeekStats();
+  CATS.forEach(c=>{
+    ['today-'+c,'p-today-'+c].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=today[c];});
+    ['week-'+c,'p-week-'+c].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=week[c];});
+    ['total-'+c,'p-total-'+c].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=state.totals[c]||0;});
+  });
+  renderCalendar();
+  renderChallenges();
+  renderAchievements();
+  renderMap();
+}
+
+// ========== ACHIEVEMENTS ==========
+const ACHIEVEMENTS=[
+  {id:'first_kung',label:'初次練功',emoji:'🥋',desc:'完成第一次練功簽到',check:s=>s.totals.kung>=1},
+  {id:'first_meditate',label:'初次打坐',emoji:'🧘',desc:'完成第一次打坐簽到',check:s=>s.totals.meditate>=1},
+  {id:'first_sport',label:'初次運動',emoji:'🏃',desc:'完成第一次運動簽到',check:s=>s.totals.sport>=1},
+  {id:'triple',label:'全能勇士',emoji:'🌟',desc:'同一天完成三項簽到',check:s=>{const td=getTodayKey();const h=s.history[td]||{};return h.kung&&h.meditate&&h.sport;}},
+  {id:'kung10',label:'練功達人',emoji:'🔥',desc:'累計練功10次',check:s=>s.totals.kung>=10},
+  {id:'meditate10',label:'打坐高手',emoji:'💎',desc:'累計打坐10次',check:s=>s.totals.meditate>=10},
+  {id:'sport10',label:'運動狂人',emoji:'💪',desc:'累計運動10次',check:s=>s.totals.sport>=10},
+  {id:'total30',label:'習慣王者',emoji:'👑',desc:'總簽到次數達30次',check:s=>(s.totals.kung+s.totals.meditate+s.totals.sport)>=30},
+];
+
+function renderAchievements(){
+  if(!state.earnedBadges)state.earnedBadges={};
+  const el=document.getElementById('achievementsList');
+  if(!el)return;
+  el.innerHTML='';
+  ACHIEVEMENTS.forEach(a=>{
+    const earned=a.check(state);
+    if(earned&&!state.earnedBadges[a.id]){
+      state.earnedBadges[a.id]=true;
+      saveState(state);
+    }
+    const div=document.createElement('div');
+    div.className='badge '+(earned?'earned':'locked');
+    div.innerHTML=`${a.emoji} ${a.label}`;
+    div.title=a.desc;
+    el.appendChild(div);
+  });
+}
+
+function checkAchievements(cat){
+  if(!state.earnedBadges)state.earnedBadges={};
+  ACHIEVEMENTS.forEach(a=>{
+    if(!state.earnedBadges[a.id]&&a.check(state)){
+      state.earnedBadges[a.id]=true;
+      showToast('🏅 成就解鎖！',a.emoji+' '+a.label);
+      saveState(state);
+    }
+  });
+}
+
+// ========== CALENDAR ==========
+let calYear=new Date().getFullYear();
+let calMonth=new Date().getMonth();
+
+function calNav(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--;}if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
+
+function renderCalendar(){
+  const el=document.getElementById('calGrid');
+  const titleEl=document.getElementById('calTitle');
+  if(!el||!titleEl)return;
+  titleEl.textContent=`${calYear}年 ${calMonth+1}月`;
+  const first=new Date(calYear,calMonth,1).getDay();
+  const days=new Date(calYear,calMonth+1,0).getDate();
+  const today=new Date();
+  el.innerHTML='';
+  for(let i=0;i<first;i++){const d=document.createElement('div');d.className='cal-day empty';el.appendChild(d);}
+  for(let d=1;d<=days;d++){
+    const key=`${calYear}-${calMonth+1}-${d}`;
+    const entry=state.history[key]||{};
+    const div=document.createElement('div');
+    div.className='cal-day';
+    div.textContent=d;
+    const count=[entry.kung,entry.meditate,entry.sport].filter(Boolean).length;
+    if(count===3)div.classList.add('all3');
+    else if(count>0)div.classList.add('some');
+    if(entry.kung)div.classList.add('has-kung');
+    if(entry.meditate)div.classList.add('has-meditate');
+    if(entry.sport)div.classList.add('has-sport');
+    if(today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d)div.classList.add('today');
+    el.appendChild(div);
+  }
+}
+
+// ========== CHALLENGES ==========
+const CHALLENGES=[
+  {id:'month20',label:'🎯 本月簽到20次',target:20,get:s=>s.totals.kung+s.totals.meditate+s.totals.sport,reward:'金色王冠 👑'},
+  {id:'month_triple',label:'⭐ 本月全勤挑戰',target:3,get:s=>{let c=0;const now=new Date();for(let d=1;d<=now.getDate();d++){const k=`${now.getFullYear()}-${now.getMonth()+1}-${d}`;const h=s.history[k]||{};if(h.kung&&h.meditate&&h.sport)c++;}return c;},reward:'超級全能徽章 🌟'},
+  {id:'kung10_month',label:'🥋 練功本月10次',target:10,get:s=>Math.min(s.totals.kung,10),reward:'練功大師 🥋'},
+  {id:'meditate10_month',label:'🧘 打坐本月10次',target:10,get:s=>Math.min(s.totals.meditate,10),reward:'靜心之星 💫'},
+];
+
+function renderChallenges(){
+  const el=document.getElementById('challengeGrid');
+  if(!el)return;
+  el.innerHTML='';
+  CHALLENGES.forEach(c=>{
+    const cur=c.get(state);
+    const pct=Math.min(100,Math.round(cur/c.target*100));
+    const done=pct>=100;
+    const div=document.createElement('div');
+    div.className='challenge-card';
+    div.innerHTML=`
+      <div class="challenge-title">${c.label}${done?' ✅':''}</div>
+      <div class="challenge-desc">完成獎勵：${c.reward}</div>
+      <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%;background:${done?'var(--mint)':'var(--pink)'}"></div></div>
+      <div class="progress-text">${cur}/${c.target} (${pct}%)</div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+// ========== LEADERBOARD ==========
+const FAKE_PLAYERS=[
+  {name:'小龍女',emoji:'🐉',total:87,streak:14},
+  {name:'武當張三丰',emoji:'🌊',total:72,streak:9},
+  {name:'少林弟子',emoji:'🏔️',total:65,streak:7},
+  {name:'峨嵋師妹',emoji:'🌸',total:58,streak:12},
+  {name:'崑崙劍客',emoji:'⚡',total:43,streak:5},
+  {name:'華山論劍者',emoji:'🌙',total:38,streak:3},
+];
+
+function renderLeaderboard(){
+  const el=document.getElementById('lbList');
+  if(!el)return;
+  const myTotal=(state.totals.kung||0)+(state.totals.meditate||0)+(state.totals.sport||0);
+  const myName=state.username||'我';
+  const all=[{name:myName,emoji:'⭐',total:myTotal,streak:0,isMe:true},...FAKE_PLAYERS];
+  all.sort((a,b)=>b.total-a.total);
+  el.innerHTML='';
+  all.forEach((p,i)=>{
+    const rank=i+1;
+    const div=document.createElement('div');
+    div.className='lb-row';
+    if(p.isMe)div.style.background='#FFF9E0';
+    const rankClass=rank<=3?'r'+rank:'';
+    const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'';
+    div.innerHTML=`
+      <div class="lb-rank ${rankClass}">${medal||rank}</div>
+      <div class="lb-avatar" style="background:${['#FFE0F0','#E0F0FF','#E0FFE8','#FFF0E0','#F0E0FF'][i%5]}">${p.emoji}</div>
+      <div style="flex:1"><div class="lb-name">${p.name}${p.isMe?' (我)':''}</div><div class="lb-sub">🔥 連續 ${p.streak||0} 天</div></div>
+      <div class="lb-score">${p.total}</div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+// ========== MAP ==========
+function renderMap(){
+  const counts=state.regionCounts||{};
+  const max=Math.max(...Object.values(counts));
+  REGION_KEYS.forEach(r=>{
+    const dot=document.getElementById('dot-'+r);
+    if(!dot)return;
+    const v=counts[r]||0;
+    const ratio=max>0?v/max:0;
+    const opacity=0.3+ratio*0.7;
+    dot.setAttribute('opacity',opacity.toFixed(2));
+    const size=8+ratio*14;
+    dot.setAttribute('r',size.toFixed(1));
+    if(ratio>0.7)dot.classList.add('active');
+    else dot.classList.remove('active');
+  });
+  const legend=document.getElementById('mapLegend');
+  if(legend){
+    legend.innerHTML='';
+    [...REGION_KEYS].sort((a,b)=>(counts[b]||0)-(counts[a]||0)).slice(0,3).forEach((r,i)=>{
+      const span=document.createElement('span');
+      span.style.cssText='font-size:12px;font-weight:700;';
+      span.textContent=(i===0?'🔥':i===1?'⭐':'👍')+' '+REGION_NAME[r]+' '+counts[r]+'人';
+      legend.appendChild(span);
+    });
+  }
+}
+
+// ========== QUOTES ==========
+const QUOTES=[
+  {text:'每一天的努力，都是成就未來的你！',author:'— 好習慣養成站'},
+  {text:'持之以恆，是所有成功的秘訣。',author:'— 古老智慧'},
+  {text:'今天的汗水，是明天微笑的種子。',author:'— 練功者語錄'},
+  {text:'靜心是智慧的開始，行動是夢想的起點。',author:'— 打坐悟語'},
+  {text:'讓身體動起來，讓心靈安靜下來。',author:'— 運動達人'},
+  {text:'小小的進步，每天累積，終成大道。',author:'— 日常修行'},
+  {text:'你比你想象的更強大，繼續前行！',author:'— 自我突破'},
+  {text:'最好的時間是現在，最好的你在路上。',author:'— 今日格言'},
+];
+
+function setDailyQuote(){
+  const today=new Date();
+  const idx=(today.getDate()+today.getMonth())%QUOTES.length;
+  const q=QUOTES[idx];
+  const el=document.getElementById('quoteText');
+  const au=document.getElementById('quoteAuthor');
+  if(el)el.textContent='「'+q.text+'」';
+  if(au)au.textContent=q.author;
+}
+
+// ========== DISCUSSION ==========
+const BAD_WORDS=['爛','廢','蠢','笨','死','垃圾','廢物','白痴','混蛋','討厭','煩死','去死','豬','笑話'];
+function filterMsg(text){
+  let t=text;
+  BAD_WORDS.forEach(w=>{t=t.replace(new RegExp(w,'g'),'**');});
+  return t;
+}
+
+const DEFAULT_MSGS=[
+  {name:'小明',emoji:'🌟',text:'今天三項都簽到了！加油！',time:'10 分鐘前'},
+  {name:'阿花',emoji:'💪',text:'打坐讓我一天都精神滿滿，推薦大家！',time:'1 小時前'},
+  {name:'大雄',emoji:'🔥',text:'連續7天運動，感覺越來越好！',time:'昨天'},
+];
+
+function renderDiscussions(){
+  const el=document.getElementById('discussList');
+  if(!el)return;
+  const msgs=[...(state.discussions||[]),...DEFAULT_MSGS];
+  el.innerHTML='';
+  msgs.slice(0,20).forEach(m=>{
+    const div=document.createElement('div');
+    div.className='discuss-item';
+    div.innerHTML=`
+      <div class="discuss-avatar" style="background:#FFF0E0">${m.emoji}</div>
+      <div class="discuss-content">
+        <div class="discuss-name">${m.name}</div>
+        <div class="discuss-text">${m.text}</div>
+        <div class="discuss-time">${m.time}</div>
+      </div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+function sendMessage(){
+  const input=document.getElementById('discussInput');
+  const raw=input.value.trim();
+  if(!raw)return;
+  const filtered=filterMsg(raw);
+  const msg={name:state.username||'匿名用戶',emoji:'⭐',text:filtered,time:'剛剛'};
+  if(!state.discussions)state.discussions=[];
+  state.discussions.unshift(msg);
+  saveState(state);
+  input.value='';
+  renderDiscussions();
+}
+
+// ========== USERNAME ==========
+function updateUsername(val){
+  state.username=val;
+  saveState(state);
+  renderLeaderboard();
+}
+
+// ========== TOAST ==========
+function showToast(title,msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toastTitle').textContent=title;
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ========== NAV ==========
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  if(id==='rank')renderLeaderboard();
+  if(id==='profile'){updateAllStats();}
+  if(id==='map'){setDailyQuote();renderDiscussions();renderMap();}
+}
+
+// ========== INIT ==========
+function init(){
+  const usernameEl=document.getElementById('usernameInput');
+  if(usernameEl)usernameEl.value=state.username||'';
+  updateCheckinUI();
+  updateAllStats();
+  setDailyQuote();
+  renderCalendar();
+  renderLeaderboard();
+  renderDiscussions();
+  renderMap();
+}
+
+// Auto daily reset check
+setInterval(()=>{
+  const s=getState();
+  if(s.lastReset!==getTodayKey()){
+    state=s;
+    init();
+  }
+},60000);
+
+init();
+</script>
+</body>
+</html>
