@@ -6,16 +6,14 @@
 <title>✨ 每日簽到 — 好習慣養成站</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet">
 
+<!-- Firebase App + Auth + Database -->
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase, ref, set, get, update, onValue, push, serverTimestamp, increment }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { initializeApp }                          from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, update, onValue, push, increment, get }
+                                                   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut }
+                                                   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// ========================================================
-// 🔥🔥🔥 第一步：把下面7行換成你的 Firebase 設定碼 🔥🔥🔥
-// 進入 Firebase Console → 齒輪 → 專案設定 → 你的應用程式
-// 把引號裡面的文字換掉，引號本身要保留
-// ========================================================
 const firebaseConfig = {
   apiKey:            "AIzaSyBQCdaIVWOVJyLb2TrIGkZgB0TEVlraNkU",
   authDomain:        "joy-drums.firebaseapp.com",
@@ -25,21 +23,25 @@ const firebaseConfig = {
   messagingSenderId: "618965174337",
   appId:             "1:618965174337:web:0c40a8df1279cbcfc39ec0"
 };
-// ========================================================
-// 🔥🔥🔥 設定碼填到這裡就結束，下面不需要改 🔥🔥🔥
-// ========================================================
 
-const app = initializeApp(firebaseConfig);
-const db  = getDatabase(app);
-window._db  = db;
-window._ref = ref;
-window._set = set;
-window._get = get;
-window._update = update;
-window._onValue = onValue;
-window._push = push;
-window._serverTimestamp = serverTimestamp;
+const app      = initializeApp(firebaseConfig);
+const db       = getDatabase(app);
+const auth     = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+window._db        = db;
+window._auth      = auth;
+window._ref       = ref;
+window._update    = update;
+window._onValue   = onValue;
+window._push      = push;
 window._increment = increment;
+window._get       = get;
+window._signInWithPopup   = signInWithPopup;
+window._GoogleAuthProvider = GoogleAuthProvider;
+window._provider  = provider;
+window._signOut   = signOut;
+window._onAuthStateChanged = onAuthStateChanged;
 window._firebaseReady = true;
 window.dispatchEvent(new Event('firebase-ready'));
 </script>
@@ -49,174 +51,388 @@ window.dispatchEvent(new Event('firebase-ready'));
 :root{
   --pink:#FF6B9D;--yellow:#FFD93D;--mint:#6BCB77;--sky:#4FC3F7;
   --purple:#B39DDB;--orange:#FFB347;--coral:#FF7B7B;
-  --bg:#FFF9F0;--card:#FFF;--text:#3D2B1F;--muted:#9E8A7E;--border:#F0E8E0;
-  --shadow:0 4px 20px rgba(0,0,0,0.08);
+  --bg:#FFF9F0;--text:#3D2B1F;--muted:#9E8A7E;--border:#F0E8E0;
+  --shadow:0 4px 20px rgba(0,0,0,.08);
 }
-body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);cursor:none;min-height:100vh;overflow-x:hidden;}
+*{cursor:none!important;}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* ── CURSOR ── */
 #cursor{position:fixed;width:36px;height:36px;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);font-size:28px;line-height:1;}
 .burst-emoji{position:fixed;pointer-events:none;z-index:99997;font-size:22px;animation:burstAnim .8s ease-out forwards;}
 @keyframes burstAnim{0%{transform:translate(-50%,-50%) scale(.5);opacity:1;}100%{transform:translate(-50%,-50%) scale(1.5) translate(var(--dx),var(--dy));opacity:0;}}
-nav{background:#fff;border-bottom:2px solid var(--border);padding:0 20px;display:flex;align-items:center;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow-x:auto;}
-.nav-logo{font-family:'Fredoka One',cursive;font-size:22px;color:var(--pink);margin-right:auto;padding:14px 0;white-space:nowrap;}
-.nav-logo span{color:var(--yellow);}
-.nav-tab{padding:18px 14px;font-weight:700;font-size:13px;color:var(--muted);cursor:none;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;flex-shrink:0;}
-.nav-tab:hover{color:var(--text);}
-.nav-tab.active{color:var(--pink);border-bottom-color:var(--pink);}
-#loadingOverlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .5s;}
+
+/* ── LOGIN SCREEN ── */
+#loginScreen{position:fixed;inset:0;background:linear-gradient(135deg,#FF6B9D 0%,#FFB347 50%,#FFD93D 100%);z-index:8000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0;}
+#loginScreen.hide{display:none;}
+.login-card{background:#fff;border-radius:28px;padding:44px 36px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.18);max-width:380px;width:90%;animation:loginPop .5s cubic-bezier(.34,1.56,.64,1);}
+@keyframes loginPop{0%{transform:scale(.7);opacity:0;}100%{transform:scale(1);opacity:1;}}
+.login-logo{font-size:60px;margin-bottom:8px;}
+.login-title{font-family:'Fredoka One',cursive;font-size:28px;color:var(--pink);margin-bottom:6px;}
+.login-sub{font-size:14px;color:var(--muted);margin-bottom:28px;line-height:1.6;}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:12px;background:#fff;border:2px solid #E0E0E0;border-radius:50px;padding:14px 28px;font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:#3D2B1F;box-shadow:0 4px 14px rgba(0,0,0,.1);transition:all .2s;width:100%;}
+.google-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.15);border-color:var(--pink);}
+.google-icon{width:24px;height:24px;}
+.login-note{font-size:11px;color:var(--muted);margin-top:16px;}
+
+/* ── LOADING ── */
+#loadingOverlay{position:fixed;inset:0;background:var(--bg);z-index:7000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .5s;}
 #loadingOverlay.hide{opacity:0;pointer-events:none;}
 .loading-spinner{width:50px;height:50px;border:4px solid var(--border);border-top-color:var(--pink);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-text{font-family:'Fredoka One',cursive;font-size:18px;color:var(--pink);}
-.page{display:none;padding:28px 20px;max-width:900px;margin:0 auto;}
+
+/* ── CELEBRATION OVERLAY ── */
+#celebOverlay{position:fixed;inset:0;z-index:6000;display:none;flex-direction:column;align-items:center;justify-content:center;pointer-events:all;}
+#celebOverlay.show{display:flex;}
+.celeb-bg{position:absolute;inset:0;}
+.celeb-content{position:relative;z-index:1;text-align:center;pointer-events:none;}
+.celeb-msg{font-family:'Fredoka One',cursive;font-size:clamp(24px,6vw,42px);color:#fff;text-shadow:0 3px 14px rgba(0,0,0,.25);margin-top:16px;line-height:1.3;}
+.celeb-sub{font-size:clamp(14px,3vw,20px);color:rgba(255,255,255,.9);margin-top:8px;font-weight:800;}
+.celeb-close{margin-top:28px;background:#fff;border:none;border-radius:50px;padding:12px 32px;font-family:'Fredoka One',cursive;font-size:18px;color:var(--pink);box-shadow:0 4px 16px rgba(0,0,0,.15);pointer-events:all;}
+.celeb-close:hover{transform:scale(1.05);}
+/* confetti pieces */
+.conf{position:absolute;border-radius:3px;animation:confFall linear forwards;}
+@keyframes confFall{0%{transform:translateY(-20px) rotate(0);opacity:1;}100%{transform:translateY(110vh) rotate(720deg);opacity:0;}}
+
+/* ── NAV ── */
+nav{background:#fff;border-bottom:2px solid var(--border);padding:0 16px;display:flex;align-items:center;position:sticky;top:0;z-index:500;box-shadow:0 2px 12px rgba(0,0,0,.06);overflow-x:auto;gap:0;}
+.nav-logo{font-family:'Fredoka One',cursive;font-size:20px;color:var(--pink);margin-right:auto;padding:14px 0;white-space:nowrap;flex-shrink:0;}
+.nav-logo span{color:var(--yellow);}
+.nav-tab{padding:18px 12px;font-weight:700;font-size:13px;color:var(--muted);border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;flex-shrink:0;}
+.nav-tab.active{color:var(--pink);border-bottom-color:var(--pink);}
+.nav-user{display:flex;align-items:center;gap:8px;padding:8px 12px;flex-shrink:0;}
+.nav-avatar{width:32px;height:32px;border-radius:50%;border:2px solid var(--pink);}
+.nav-signout{font-size:11px;font-weight:800;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 10px;}
+.nav-signout:hover{color:var(--coral);}
+
+/* ── PAGES ── */
+.page{display:none;padding:24px 18px;max-width:900px;margin:0 auto;}
 .page.active{display:block;}
 .sec-title{font-family:'Fredoka One',cursive;font-size:26px;margin-bottom:6px;}
-.sec-sub{color:var(--muted);font-size:14px;margin-bottom:24px;}
-.checkin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px;}
-@media(max-width:520px){.checkin-grid{grid-template-columns:1fr;}}
-.checkin-card{background:#fff;border-radius:20px;padding:26px 16px;text-align:center;border:2px solid var(--border);box-shadow:var(--shadow);transition:all .25s;cursor:none;position:relative;overflow:hidden;}
+.sec-sub{color:var(--muted);font-size:14px;margin-bottom:22px;}
+
+/* ── CITY SELECTOR ── */
+.city-selector-wrap{background:#fff;border-radius:18px;padding:14px 18px;border:2px solid var(--border);box-shadow:var(--shadow);margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.city-selector-label{font-family:'Fredoka One',cursive;font-size:16px;color:var(--purple);white-space:nowrap;}
+.city-select{flex:1;min-width:170px;padding:9px 14px;border-radius:50px;border:2px solid var(--purple);font-family:'Nunito',sans-serif;font-weight:700;font-size:13px;background:#FBF8FF;outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23B39DDB' stroke-width='2' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+.city-current{font-size:12px;color:var(--muted);font-weight:700;}
+.city-current span{color:var(--purple);font-weight:800;}
+
+/* ── CHECKIN CARDS ── */
+.checkin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:26px;}
+@media(max-width:520px){.checkin-grid{grid-template-columns:1fr;}.stats-grid{grid-template-columns:1fr;}}
+.checkin-card{background:#fff;border-radius:20px;padding:24px 14px;text-align:center;border:2px solid var(--border);box-shadow:var(--shadow);transition:all .25s;position:relative;overflow:hidden;}
 .checkin-card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .3s;}
 .checkin-card.kung::before{background:linear-gradient(135deg,#FFE0EC,#FFB3CC);}
 .checkin-card.meditate::before{background:linear-gradient(135deg,#E0F0FF,#B3D9FF);}
 .checkin-card.sport::before{background:linear-gradient(135deg,#E0FFE8,#B3F0C0);}
-.checkin-card:not(.done):hover{transform:translateY(-4px);box-shadow:0 8px 30px rgba(0,0,0,0.12);}
+.checkin-card:not(.done):hover{transform:translateY(-4px);box-shadow:0 8px 30px rgba(0,0,0,.12);}
 .checkin-card:not(.done):hover::before{opacity:1;}
 .checkin-card.done{background:#F5F3F0;border-color:#E0DDD8;}
 .checkin-card.done .checkin-icon{filter:grayscale(1);opacity:.5;}
-.checkin-card.done .checkin-btn{background:#DDD;color:#AAA;cursor:default;}
-.done-badge{position:absolute;top:10px;right:10px;background:#DDD;color:#AAA;font-size:10px;font-weight:800;padding:3px 8px;border-radius:20px;z-index:2;display:none;}
-.checkin-icon{font-size:48px;margin-bottom:10px;position:relative;z-index:1;}
-.checkin-label{font-family:'Fredoka One',cursive;font-size:18px;margin-bottom:14px;position:relative;z-index:1;}
+.checkin-card.done .checkin-btn{background:#DDD;color:#AAA;}
+.done-badge{position:absolute;top:9px;right:9px;background:#DDD;color:#AAA;font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;z-index:2;display:none;}
+.checkin-icon{font-size:46px;margin-bottom:9px;position:relative;z-index:1;}
+.checkin-label{font-family:'Fredoka One',cursive;font-size:17px;margin-bottom:12px;position:relative;z-index:1;}
 .kung .checkin-label{color:var(--pink);}
 .meditate .checkin-label{color:var(--sky);}
 .sport .checkin-label{color:var(--mint);}
-.checkin-btn{display:inline-block;padding:9px 22px;border-radius:50px;font-weight:800;font-size:13px;border:none;cursor:none;position:relative;z-index:1;transition:all .2s;}
+.checkin-btn{display:inline-block;padding:8px 20px;border-radius:50px;font-weight:800;font-size:12px;border:none;position:relative;z-index:1;transition:all .2s;}
 .kung .checkin-btn{background:var(--pink);color:#fff;}
 .meditate .checkin-btn{background:var(--sky);color:#fff;}
 .sport .checkin-btn{background:var(--mint);color:#fff;}
 .checkin-btn:not(:disabled):hover{transform:scale(1.05);}
-.stats-section{margin-bottom:22px;}
-.stats-label{font-weight:800;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
-.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-.stat-card{background:#fff;border-radius:14px;padding:14px;border:2px solid var(--border);text-align:center;}
-.stat-num{font-family:'Fredoka One',cursive;font-size:30px;}
+
+/* ── STATS ── */
+.stats-section{margin-bottom:20px;}
+.stats-label{font-weight:800;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:9px;}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+.stat-card{background:#fff;border-radius:14px;padding:13px;border:2px solid var(--border);text-align:center;}
+.stat-num{font-family:'Fredoka One',cursive;font-size:28px;}
 .stat-cat{font-size:11px;font-weight:700;color:var(--muted);margin-top:2px;}
 .stat-card.kung .stat-num{color:var(--pink);}
 .stat-card.meditate .stat-num{color:var(--sky);}
 .stat-card.sport .stat-num{color:var(--mint);}
-.live-bar{background:#fff;border-radius:16px;padding:14px 18px;border:2px solid var(--border);margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.live-dot{width:10px;height:10px;border-radius:50%;background:var(--mint);animation:pulse 1.5s infinite;}
+
+/* ── LIVE BAR ── */
+.live-bar{background:#fff;border-radius:16px;padding:12px 16px;border:2px solid var(--border);margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.live-dot{width:9px;height:9px;border-radius:50%;background:var(--mint);animation:pulse 1.5s infinite;flex-shrink:0;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
-.live-text{font-weight:800;font-size:14px;flex:1;}
-.live-counts{display:flex;gap:12px;flex-wrap:wrap;}
-.live-count-item{font-size:13px;font-weight:700;padding:4px 12px;border-radius:20px;}
+.live-text{font-weight:800;font-size:13px;flex:1;}
+.live-counts{display:flex;gap:8px;flex-wrap:wrap;}
+.live-count-item{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;}
 .live-count-item.kung{background:#FFE0EC;color:#CC0055;}
 .live-count-item.meditate{background:#E0F0FF;color:#0066AA;}
 .live-count-item.sport{background:#E0FFE8;color:#006620;}
-.achievements{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
-.badge{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:50px;font-size:12px;font-weight:700;border:2px solid transparent;}
+
+/* ── ACHIEVEMENTS ── */
+.achievements{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px;}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:50px;font-size:12px;font-weight:700;border:2px solid transparent;}
 .badge.earned{background:var(--yellow);color:#7A5000;border-color:#F0C000;}
 .badge.locked{background:#F0EDEA;color:#BBB;border-color:#E0DDD8;}
-.username-edit{display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:14px 18px;border:2px solid var(--border);margin-bottom:20px;}
-.username-input{font-family:'Fredoka One',cursive;font-size:20px;border:none;outline:none;color:var(--pink);background:transparent;flex:1;min-width:0;}
-.cal-wrap{background:#fff;border-radius:18px;padding:18px;border:2px solid var(--border);box-shadow:var(--shadow);margin-bottom:20px;}
-.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-.cal-title{font-family:'Fredoka One',cursive;font-size:17px;}
-.cal-nav{background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:5px 12px;font-weight:800;cursor:none;font-size:13px;}
-.cal-days-hdr{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:5px;}
-.cal-day-name{text-align:center;font-size:10px;font-weight:800;color:var(--muted);}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
-.cal-day{aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;position:relative;background:#FAFAFA;}
+
+/* ── PROFILE ── */
+.username-edit{display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:12px 16px;border:2px solid var(--border);margin-bottom:18px;}
+.username-input{font-family:'Fredoka One',cursive;font-size:19px;border:none;outline:none;color:var(--pink);background:transparent;flex:1;min-width:0;}
+.profile-google-info{display:flex;align-items:center;gap:10px;background:#F8F8FF;border-radius:14px;padding:12px 16px;border:2px solid var(--border);margin-bottom:18px;}
+.profile-google-avatar{width:44px;height:44px;border-radius:50%;border:2px solid var(--purple);}
+.profile-google-name{font-weight:800;font-size:14px;}
+.profile-google-email{font-size:11px;color:var(--muted);}
+
+/* ── CALENDAR ── */
+.cal-wrap{background:#fff;border-radius:18px;padding:16px;border:2px solid var(--border);box-shadow:var(--shadow);margin-bottom:18px;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.cal-title{font-family:'Fredoka One',cursive;font-size:16px;}
+.cal-nav{background:var(--bg);border:2px solid var(--border);border-radius:10px;padding:4px 11px;font-weight:800;font-size:12px;}
+.cal-days-hdr{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;}
+.cal-day-name{text-align:center;font-size:9px;font-weight:800;color:var(--muted);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-day{aspect-ratio:1;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;position:relative;background:#FAFAFA;}
 .cal-day.empty{background:transparent;}
 .cal-day.today{border:2px solid var(--pink);}
 .cal-day.all3{background:linear-gradient(135deg,#FFF0F5,#F0FAFF,#F0FFF5);border:2px solid var(--yellow);}
 .cal-day.some{background:#FFFDF0;}
-.dot-row{position:absolute;bottom:2px;left:0;right:0;display:flex;justify-content:center;gap:2px;}
-.cal-dot{width:4px;height:4px;border-radius:50%;}
+.dot-row{position:absolute;bottom:2px;left:0;right:0;display:flex;justify-content:center;gap:1px;}
+.cal-dot{width:3px;height:3px;border-radius:50%;}
 .cal-dot.k{background:var(--pink);}
 .cal-dot.m{background:var(--sky);}
 .cal-dot.s{background:var(--mint);}
-.challenge-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;}
+
+/* ── CHALLENGES ── */
+.challenge-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:20px;}
 @media(max-width:480px){.challenge-grid{grid-template-columns:1fr;}}
-.challenge-card{background:#fff;border-radius:14px;padding:14px;border:2px solid var(--border);}
-.challenge-title{font-weight:800;font-size:13px;margin-bottom:4px;}
-.challenge-desc{font-size:11px;color:var(--muted);margin-bottom:8px;}
-.progress-bar-wrap{background:#F0EDEA;border-radius:50px;height:9px;overflow:hidden;}
+.challenge-card{background:#fff;border-radius:14px;padding:13px;border:2px solid var(--border);}
+.challenge-title{font-weight:800;font-size:12px;margin-bottom:3px;}
+.challenge-desc{font-size:10px;color:var(--muted);margin-bottom:7px;}
+.progress-bar-wrap{background:#F0EDEA;border-radius:50px;height:8px;overflow:hidden;}
 .progress-bar{height:100%;border-radius:50px;transition:width .5s;}
-.progress-text{font-size:11px;color:var(--muted);margin-top:3px;}
-.lb-card{background:#fff;border-radius:18px;padding:18px;border:2px solid var(--border);box-shadow:var(--shadow);margin-bottom:18px;}
-.lb-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);}
+.progress-text{font-size:10px;color:var(--muted);margin-top:3px;}
+
+/* ── LEADERBOARD ── */
+.lb-tabs{display:flex;background:#fff;border-radius:16px 16px 0 0;border:2px solid var(--border);border-bottom:none;overflow:hidden;}
+.lb-tab{flex:1;padding:13px;text-align:center;font-weight:800;font-size:13px;color:var(--muted);border-bottom:3px solid transparent;transition:all .2s;}
+.lb-tab.active{color:var(--pink);background:#FFF5F9;border-bottom-color:var(--pink);}
+.lb-card{background:#fff;border-radius:0 0 18px 18px;border:2px solid var(--border);border-top:none;padding:0 16px 10px;box-shadow:var(--shadow);margin-bottom:22px;}
+.lb-city-filter{padding:12px 0 4px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.lb-city-select{padding:7px 12px;border-radius:50px;border:2px solid var(--purple);font-family:'Nunito',sans-serif;font-weight:700;font-size:12px;background:#FBF8FF;outline:none;}
+.lb-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--border);}
 .lb-row:last-child{border-bottom:none;}
-.lb-rank{font-family:'Fredoka One',cursive;font-size:20px;min-width:34px;text-align:center;}
+.lb-rank{font-family:'Fredoka One',cursive;font-size:18px;min-width:30px;text-align:center;}
 .lb-rank.r1{color:var(--yellow);}
 .lb-rank.r2{color:#C0C0C0;}
 .lb-rank.r3{color:#CD7F32;}
-.lb-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-.lb-name{font-weight:800;font-size:14px;}
-.lb-sub{font-size:11px;color:var(--muted);}
+.lb-avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--border);flex-shrink:0;}
+.lb-avatar-emoji{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.lb-name{font-weight:800;font-size:13px;}
+.lb-sub{font-size:10px;color:var(--muted);}
 .lb-score{font-family:'Fredoka One',cursive;font-size:20px;color:var(--pink);}
-.map-container{background:#fff;border-radius:18px;padding:18px;border:2px solid var(--border);box-shadow:var(--shadow);margin-bottom:22px;}
-.taiwan-map{width:100%;max-width:300px;margin:0 auto;display:block;}
-.region-dot{transition:all .4s;}
-.quote-box{background:linear-gradient(135deg,#FFE4F0,#FFF0E0);border-radius:18px;padding:22px 24px;border:2px solid #FFD0E0;margin-bottom:22px;text-align:center;}
-.quote-text{font-family:'Fredoka One',cursive;font-size:18px;color:var(--pink);margin-bottom:6px;line-height:1.4;}
-.quote-author{font-size:12px;color:var(--coral);}
-.discuss-input-wrap{display:flex;gap:8px;margin-bottom:14px;}
-.discuss-input{flex:1;padding:11px 15px;border-radius:50px;border:2px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;outline:none;background:#fff;}
+.lb-city-badge{background:#EDE7F6;color:#5E35B1;border-radius:20px;padding:1px 7px;font-size:9px;font-weight:800;margin-left:3px;}
+.lb-empty{text-align:center;padding:26px 18px;color:var(--muted);font-size:13px;}
+
+/* ── MAP ── */
+.map-container{background:#fff;border-radius:18px;padding:16px;border:2px solid var(--border);box-shadow:var(--shadow);margin-bottom:20px;}
+.map-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:12px;}
+.map-stat{background:#FAFAFA;border:2px solid var(--border);border-radius:11px;padding:9px;text-align:center;}
+.map-stat-num{font-family:'Fredoka One',cursive;font-size:20px;color:var(--pink);}
+.map-stat-label{font-size:10px;font-weight:700;color:var(--muted);}
+.map-tooltip{position:fixed;background:rgba(30,20,10,.85);color:#fff;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;pointer-events:none;z-index:1000;white-space:nowrap;display:none;}
+
+/* ── QUOTE ── */
+.quote-box{background:linear-gradient(135deg,#FFE4F0,#FFF0E0);border-radius:18px;padding:20px 22px;border:2px solid #FFD0E0;margin-bottom:20px;text-align:center;}
+.quote-text{font-family:'Fredoka One',cursive;font-size:17px;color:var(--pink);margin-bottom:5px;line-height:1.4;}
+.quote-author{font-size:11px;color:var(--coral);}
+
+/* ── DISCUSSION ── */
+.discuss-input-wrap{display:flex;gap:7px;margin-bottom:12px;}
+.discuss-input{flex:1;padding:10px 14px;border-radius:50px;border:2px solid var(--border);font-family:'Nunito',sans-serif;font-size:13px;outline:none;background:#fff;}
 .discuss-input:focus{border-color:var(--pink);}
-.discuss-send{padding:11px 20px;background:var(--pink);color:#fff;border:none;border-radius:50px;font-weight:800;font-size:13px;cursor:none;}
-.discuss-list{display:flex;flex-direction:column;gap:8px;}
-.discuss-item{background:#fff;border-radius:12px;padding:12px 14px;border:2px solid var(--border);display:flex;gap:10px;align-items:flex-start;}
-.discuss-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
-.discuss-name{font-weight:800;font-size:12px;}
-.discuss-text{font-size:13px;margin-top:2px;}
-.discuss-time{font-size:10px;color:var(--muted);margin-top:3px;}
-.toast{position:fixed;bottom:20px;right:20px;background:#fff;border-radius:14px;padding:13px 18px;box-shadow:0 8px 30px rgba(0,0,0,0.14);border-left:4px solid var(--mint);z-index:9999;transform:translateY(100px);opacity:0;transition:all .4s;max-width:260px;}
+.discuss-send{padding:10px 18px;background:var(--pink);color:#fff;border:none;border-radius:50px;font-weight:800;font-size:13px;}
+.discuss-list{display:flex;flex-direction:column;gap:7px;}
+.discuss-item{background:#fff;border-radius:12px;padding:11px 13px;border:2px solid var(--border);display:flex;gap:9px;align-items:flex-start;}
+.discuss-avatar-sm{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--border);}
+.discuss-avatar-emoji{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:#FFF0E0;}
+.discuss-name{font-weight:800;font-size:11px;}
+.discuss-text{font-size:13px;margin-top:1px;}
+.discuss-time{font-size:9px;color:var(--muted);margin-top:2px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:20px;background:#fff;border-radius:14px;padding:12px 16px;box-shadow:0 8px 30px rgba(0,0,0,.14);border-left:4px solid var(--mint);z-index:9999;transform:translateY(100px);opacity:0;transition:all .4s;max-width:260px;}
 .toast.show{transform:translateY(0);opacity:1;}
 .toast-title{font-weight:800;font-size:13px;margin-bottom:2px;}
 .toast-msg{font-size:12px;color:var(--muted);}
-.legend{display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap;}
-.legend-item{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;}
-.legend-dot{width:10px;height:10px;border-radius:50%;}
-.particle{position:fixed;pointer-events:none;z-index:-1;font-size:18px;animation:floatP linear infinite;opacity:.12;}
-@keyframes floatP{0%{transform:translateY(100vh) rotate(0);opacity:.12;}100%{transform:translateY(-20px) rotate(360deg);opacity:0;}}
+
+/* ── MISC ── */
+.legend{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;}
+.legend-dot{width:9px;height:9px;border-radius:50%;}
+.particle{position:fixed;pointer-events:none;z-index:-1;font-size:16px;animation:floatP linear infinite;opacity:.11;}
+@keyframes floatP{0%{transform:translateY(100vh) rotate(0);opacity:.11;}100%{transform:translateY(-20px) rotate(360deg);opacity:0;}}
+
+/* ── CELEBRATION SVG CHARACTERS ── */
+.celeb-chars{display:flex;justify-content:center;align-items:center;margin-bottom:6px;}
+/* 打鼓敲擊感跳動：模仿圖片裡揮鼓棒的律動 */
+@keyframes drumHit{
+  0%  {transform:translateY(0px)   rotate(-3deg) scale(1.00);}
+  25% {transform:translateY(-22px) rotate( 3deg) scale(1.05);}
+  55% {transform:translateY(-6px)  rotate(-1deg) scale(1.02);}
+  80% {transform:translateY(-14px) rotate( 2deg) scale(1.03);}
+  100%{transform:translateY(0px)   rotate(-3deg) scale(1.00);}
+}
+@keyframes drumHit2{
+  0%  {transform:translateY(-8px)  rotate( 3deg) scale(1.02);}
+  30% {transform:translateY(-24px) rotate(-3deg) scale(1.05);}
+  65% {transform:translateY(-4px)  rotate( 1deg) scale(1.01);}
+  100%{transform:translateY(-8px)  rotate( 3deg) scale(1.02);}
+}
+@keyframes drumHit3{
+  0%  {transform:translateY(-4px)  rotate(-2deg);}
+  40% {transform:translateY(-20px) rotate( 3deg) scale(1.04);}
+  75% {transform:translateY(-8px)  rotate(-1deg);}
+  100%{transform:translateY(-4px)  rotate(-2deg);}
+}
+@keyframes drumHit4{
+  0%  {transform:translateY(0)     rotate(2deg);}
+  35% {transform:translateY(-18px) rotate(-2deg) scale(1.03);}
+  100%{transform:translateY(0)     rotate(2deg);}
+}
+@keyframes drumHit5{
+  0%  {transform:translateY(-6px) rotate(-3deg) scale(1.01);}
+  50% {transform:translateY(-26px) rotate(3deg) scale(1.05);}
+  100%{transform:translateY(-6px) rotate(-3deg) scale(1.01);}
+}
+/* 舞者歡呼跳躍 */
+@keyframes danceJoy{
+  0%  {transform:translateY(0)    rotate(-4deg) scale(1.0);}
+  40% {transform:translateY(-28px) rotate(4deg) scale(1.06);}
+  70% {transform:translateY(-12px) rotate(-2deg);}
+  100%{transform:translateY(0)    rotate(-4deg) scale(1.0);}
+}
+/* 音符上浮 */
+@keyframes noteRise{
+  0%  {transform:translateY(0)   rotate(-8deg);opacity:1;}
+  100%{transform:translateY(-22px) rotate(12deg);opacity:0.2;}
+}
+.char-bounce {animation:drumHit  .55s ease-in-out infinite alternate;}
+.char-bounce2{animation:drumHit2 .55s .13s ease-in-out infinite alternate;}
+.char-bounce3{animation:drumHit3 .55s .27s ease-in-out infinite alternate;}
+.char-bounce4{animation:drumHit4 .55s .06s ease-in-out infinite alternate;}
+.char-bounce5{animation:drumHit5 .55s .20s ease-in-out infinite alternate;}
+.dance-bounce {animation:danceJoy .65s ease-in-out infinite alternate;}
+.dance-bounce2{animation:danceJoy .65s .17s ease-in-out infinite alternate;}
+.dance-bounce3{animation:danceJoy .65s .34s ease-in-out infinite alternate;}
+.note-anim{animation:noteRise 0.9s ease-out infinite alternate;}
 </style>
 </head>
 <body>
 
 <div id="cursor">😊</div>
 <div id="particles"></div>
+<div class="map-tooltip" id="mapTooltip"></div>
 
+<!-- ══════════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">🥁</div>
+    <div class="login-title">好習慣養成站</div>
+    <div class="login-sub">每天簽到練功、打坐、運動<br>和全台灣的朋友一起養成好習慣！✨</div>
+    <button class="google-btn" onclick="signInGoogle()">
+      <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      使用 Google 帳號登入
+    </button>
+    <div class="login-note">登入即代表你同意我們的使用條款。<br>每個 Google 帳號對應一個專屬簽到帳號。</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     LOADING
+══════════════════════════════════════════════ -->
 <div id="loadingOverlay">
   <div class="loading-spinner"></div>
   <div class="loading-text">✨ 連接資料庫中...</div>
 </div>
 
-<div class="toast" id="toast">
-  <div class="toast-title" id="toastTitle">🎉 成就解鎖！</div>
-  <div class="toast-msg"  id="toastMsg">你太棒了！</div>
+<!-- ══════════════════════════════════════════════
+     CELEBRATION OVERLAY
+══════════════════════════════════════════════ -->
+<div id="celebOverlay">
+  <div class="celeb-bg" id="celebBg"></div>
+  <div class="celeb-content">
+    <div class="celeb-chars" id="celebChars"></div>
+    <div class="celeb-msg"  id="celebMsg">太棒了！</div>
+    <div class="celeb-sub"  id="celebSub">繼續加油！</div>
+    <button class="celeb-close" onclick="closeCeleb()">繼續加油 💪</button>
+  </div>
 </div>
 
-<nav>
+<!-- ══════════════════════════════════════════════
+     TOAST
+══════════════════════════════════════════════ -->
+<div class="toast" id="toast">
+  <div class="toast-title" id="toastTitle">🎉</div>
+  <div class="toast-msg"   id="toastMsg"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     NAV
+══════════════════════════════════════════════ -->
+<nav id="mainNav" style="display:none">
   <div class="nav-logo">✨好<span>習</span>慣</div>
-  <div class="nav-tab active" onclick="showPage('home')"    id="tab-home">🏠 每日簽到</div>
-  <div class="nav-tab"        onclick="showPage('profile')" id="tab-profile">👤 個人頁面</div>
-  <div class="nav-tab"        onclick="showPage('rank')"    id="tab-rank">🏆 排名榜單</div>
-  <div class="nav-tab"        onclick="showPage('map')"     id="tab-map">🗺️ 台灣地圖</div>
+  <div class="nav-tab active" onclick="showPage('home')"    id="tab-home">🏠 簽到</div>
+  <div class="nav-tab"        onclick="showPage('profile')" id="tab-profile">👤 個人</div>
+  <div class="nav-tab"        onclick="showPage('rank')"    id="tab-rank">🏆 排名</div>
+  <div class="nav-tab"        onclick="showPage('map')"     id="tab-map">🗺️ 地圖</div>
+  <div class="nav-user" id="navUser"></div>
 </nav>
 
-<!-- PAGE: HOME -->
-<div class="page active" id="page-home">
+<!-- ══════════════════════════════════════════════
+     PAGE: HOME
+══════════════════════════════════════════════ -->
+<div class="page" id="page-home">
   <h1 class="sec-title">🌟 今日簽到</h1>
-  <p class="sec-sub">每天打卡，每天進步！點擊下方卡片完成今日簽到 💪</p>
+  <p class="sec-sub">選擇城市後點擊卡片，每天都要來打卡！💪</p>
+
+  <div class="city-selector-wrap">
+    <div class="city-selector-label">📍 我在哪裡？</div>
+    <select class="city-select" id="citySelect" onchange="onCityChange(this.value)">
+      <option value="">— 請選擇縣市 —</option>
+      <optgroup label="北部">
+        <option value="taipei">台北市</option><option value="newtaipei">新北市</option>
+        <option value="taoyuan">桃園市</option><option value="hsinchu_city">新竹市</option>
+        <option value="hsinchu_county">新竹縣</option><option value="keelung">基隆市</option>
+        <option value="yilan">宜蘭縣</option>
+      </optgroup>
+      <optgroup label="中部">
+        <option value="taichung">台中市</option><option value="miaoli">苗栗縣</option>
+        <option value="changhua">彰化縣</option><option value="nantou">南投縣</option>
+        <option value="yunlin">雲林縣</option>
+      </optgroup>
+      <optgroup label="南部">
+        <option value="tainan">台南市</option><option value="kaohsiung">高雄市</option>
+        <option value="chiayi_city">嘉義市</option><option value="chiayi_county">嘉義縣</option>
+        <option value="pingtung">屏東縣</option>
+      </optgroup>
+      <optgroup label="東部 & 離島">
+        <option value="hualien">花蓮縣</option><option value="taitung">台東縣</option>
+        <option value="penghu">澎湖縣</option><option value="kinmen">金門縣</option>
+        <option value="matsu">連江縣（馬祖）</option>
+      </optgroup>
+    </select>
+    <div class="city-current">目前：<span id="cityCurrentLabel">未選擇</span></div>
+  </div>
+
   <div class="live-bar">
     <div class="live-dot"></div>
-    <div class="live-text">🌍 今日全站簽到</div>
+    <div class="live-text">🌍 今日全站</div>
     <div class="live-counts">
-      <div class="live-count-item kung"     id="live-kung">🥋 練功 0</div>
-      <div class="live-count-item meditate" id="live-meditate">🧘 打坐 0</div>
-      <div class="live-count-item sport"    id="live-sport">🏃 運動 0</div>
+      <div class="live-count-item kung"     id="live-kung">🥋 0</div>
+      <div class="live-count-item meditate" id="live-meditate">🧘 0</div>
+      <div class="live-count-item sport"    id="live-sport">🏃 0</div>
     </div>
   </div>
+
   <div class="checkin-grid">
     <div class="checkin-card kung" id="card-kung">
       <span class="done-badge" id="badge-kung">✅ 已簽到</span>
@@ -237,6 +453,7 @@ nav{background:#fff;border-bottom:2px solid var(--border);padding:0 20px;display
       <button class="checkin-btn" id="btn-sport" onclick="doCheckin('sport',event)">立即簽到</button>
     </div>
   </div>
+
   <div class="stats-section">
     <div class="stats-label">📅 今日（全站）</div>
     <div class="stats-grid">
@@ -263,16 +480,21 @@ nav{background:#fff;border-bottom:2px solid var(--border);padding:0 20px;display
   </div>
 </div>
 
-<!-- PAGE: PROFILE -->
+<!-- ══════════════════════════════════════════════
+     PAGE: PROFILE
+══════════════════════════════════════════════ -->
 <div class="page" id="page-profile">
+  <div class="profile-google-info" id="profileGoogleInfo"></div>
+
   <div class="username-edit">
-    <span style="font-size:26px">👤</span>
-    <input class="username-input" id="usernameInput" placeholder="點此輸入你的暱稱" oninput="updateUsername(this.value)"/>
-    <span style="font-size:11px;color:var(--muted);white-space:nowrap">✏️ 點擊可修改</span>
+    <span style="font-size:24px">✏️</span>
+    <input class="username-input" id="usernameInput" placeholder="輸入你的顯示暱稱" oninput="updateUsername(this.value)"/>
+    <span style="font-size:10px;color:var(--muted);white-space:nowrap">可隨時改名</span>
   </div>
-  <h2 class="sec-title" style="font-size:21px">🎯 我的簽到統計</h2>
+
+  <h2 class="sec-title" style="font-size:20px">🎯 我的簽到統計</h2>
   <div class="stats-section" style="margin-bottom:8px">
-    <div class="stats-label">今日</div>
+    <div class="stats-label">今日（今天 00:00 後重置）</div>
     <div class="stats-grid">
       <div class="stat-card kung">    <div class="stat-num" id="my-today-kung">0</div>    <div class="stat-cat">🥋 練功</div></div>
       <div class="stat-card meditate"><div class="stat-num" id="my-today-meditate">0</div><div class="stat-cat">🧘 打坐</div></div>
@@ -280,7 +502,7 @@ nav{background:#fff;border-bottom:2px solid var(--border);padding:0 20px;display
     </div>
   </div>
   <div class="stats-section" style="margin-bottom:8px">
-    <div class="stats-label">本週</div>
+    <div class="stats-label">本週（週一 00:00 ～ 週日 24:00）</div>
     <div class="stats-grid">
       <div class="stat-card kung">    <div class="stat-num" id="my-week-kung">0</div>    <div class="stat-cat">🥋 練功</div></div>
       <div class="stat-card meditate"><div class="stat-num" id="my-week-meditate">0</div><div class="stat-cat">🧘 打坐</div></div>
@@ -288,18 +510,21 @@ nav{background:#fff;border-bottom:2px solid var(--border);padding:0 20px;display
     </div>
   </div>
   <div class="stats-section">
-    <div class="stats-label">累計</div>
+    <div class="stats-label">累計（同帳號永久統計）</div>
     <div class="stats-grid">
       <div class="stat-card kung">    <div class="stat-num" id="my-total-kung">0</div>    <div class="stat-cat">🥋 練功</div></div>
       <div class="stat-card meditate"><div class="stat-num" id="my-total-meditate">0</div><div class="stat-cat">🧘 打坐</div></div>
       <div class="stat-card sport">   <div class="stat-num" id="my-total-sport">0</div>   <div class="stat-cat">🏃 運動</div></div>
     </div>
   </div>
-  <h2 class="sec-title" style="font-size:21px;margin-bottom:10px">🏅 成就徽章</h2>
+
+  <h2 class="sec-title" style="font-size:20px;margin-bottom:9px">🏅 成就徽章</h2>
   <div class="achievements" id="achievementsList"></div>
-  <h2 class="sec-title" style="font-size:21px;margin-bottom:10px">🎯 本月簽到挑戰</h2>
+
+  <h2 class="sec-title" style="font-size:20px;margin-bottom:9px">🎯 本月簽到挑戰</h2>
   <div class="challenge-grid" id="challengeGrid"></div>
-  <h2 class="sec-title" style="font-size:21px;margin-bottom:10px">📅 簽到歷史日曆</h2>
+
+  <h2 class="sec-title" style="font-size:20px;margin-bottom:9px">📅 簽到歷史日曆</h2>
   <div class="legend">
     <div class="legend-item"><div class="legend-dot" style="background:var(--pink)"></div>練功</div>
     <div class="legend-item"><div class="legend-dot" style="background:var(--sky)"></div>打坐</div>
@@ -312,51 +537,69 @@ nav{background:#fff;border-bottom:2px solid var(--border);padding:0 20px;display
       <button class="cal-nav" onclick="calNav(1)">▶</button>
     </div>
     <div class="cal-days-hdr">
-      <div class="cal-day-name">日</div><div class="cal-day-name">一</div>
-      <div class="cal-day-name">二</div><div class="cal-day-name">三</div>
-      <div class="cal-day-name">四</div><div class="cal-day-name">五</div>
-      <div class="cal-day-name">六</div>
+      <div class="cal-day-name">日</div><div class="cal-day-name">一</div><div class="cal-day-name">二</div>
+      <div class="cal-day-name">三</div><div class="cal-day-name">四</div><div class="cal-day-name">五</div><div class="cal-day-name">六</div>
     </div>
     <div class="cal-grid" id="calGrid"></div>
   </div>
 </div>
 
-<!-- PAGE: RANK -->
+<!-- ══════════════════════════════════════════════
+     PAGE: RANK
+══════════════════════════════════════════════ -->
 <div class="page" id="page-rank">
-  <h1 class="sec-title">🏆 全球排名榜</h1>
-  <p class="sec-sub">比拼誰最有毅力！累計簽到次數即時排名 🔥</p>
-  <div class="lb-card" id="lbList"><div style="text-align:center;padding:20px;color:var(--muted)">載入中...</div></div>
+  <h1 class="sec-title">🏆 排名榜單</h1>
+  <p class="sec-sub">全球排名 & 各縣市排名，即時同步更新 🔥</p>
+  <div class="lb-tabs">
+    <div class="lb-tab active" id="lbtab-global" onclick="switchLbTab('global')">🌍 全球排名</div>
+    <div class="lb-tab"        id="lbtab-city"   onclick="switchLbTab('city')">📍 縣市排名</div>
+  </div>
+  <div id="lb-global-panel">
+    <div class="lb-card" id="lbGlobalList"><div class="lb-empty">載入中...</div></div>
+  </div>
+  <div id="lb-city-panel" style="display:none">
+    <div class="lb-card" style="border-radius:0;border-bottom:none;padding-bottom:0">
+      <div class="lb-city-filter">
+        <span style="font-weight:800;font-size:12px">📍 縣市：</span>
+        <select class="lb-city-select" id="lbCitySelect" onchange="renderCityLeaderboard()">
+          <option value="">— 全縣市合計 —</option>
+          <option value="taipei">台北市</option><option value="newtaipei">新北市</option>
+          <option value="taoyuan">桃園市</option><option value="hsinchu_city">新竹市</option>
+          <option value="hsinchu_county">新竹縣</option><option value="keelung">基隆市</option>
+          <option value="yilan">宜蘭縣</option><option value="taichung">台中市</option>
+          <option value="miaoli">苗栗縣</option><option value="changhua">彰化縣</option>
+          <option value="nantou">南投縣</option><option value="yunlin">雲林縣</option>
+          <option value="tainan">台南市</option><option value="kaohsiung">高雄市</option>
+          <option value="chiayi_city">嘉義市</option><option value="chiayi_county">嘉義縣</option>
+          <option value="pingtung">屏東縣</option><option value="hualien">花蓮縣</option>
+          <option value="taitung">台東縣</option><option value="penghu">澎湖縣</option>
+          <option value="kinmen">金門縣</option><option value="matsu">連江縣（馬祖）</option>
+        </select>
+      </div>
+    </div>
+    <div class="lb-card" id="lbCityList"><div class="lb-empty">請選擇縣市</div></div>
+  </div>
 </div>
 
-<!-- PAGE: MAP -->
+<!-- ══════════════════════════════════════════════
+     PAGE: MAP
+══════════════════════════════════════════════ -->
 <div class="page" id="page-map">
   <div class="quote-box">
-    <div class="quote-text"   id="quoteText">正在載入今日勵志小語...</div>
+    <div class="quote-text"   id="quoteText">載入中...</div>
     <div class="quote-author" id="quoteAuthor"></div>
   </div>
-  <h2 class="sec-title" style="font-size:21px;margin-bottom:6px">🗺️ 台灣簽到熱力圖</h2>
-  <p class="sec-sub">哪個城市最積極？點位越亮代表簽到人數越多！</p>
+  <h2 class="sec-title" style="font-size:20px;margin-bottom:5px">🗺️ 台灣簽到熱力圖</h2>
+  <p class="sec-sub">各縣市即時簽到人數，越亮代表越多人！</p>
   <div class="map-container">
-    <svg class="taiwan-map" viewBox="0 0 200 340" xmlns="http://www.w3.org/2000/svg">
-      <path d="M95,10 L120,20 L135,45 L140,80 L138,120 L145,150 L148,185 L142,220 L130,255 L110,285 L90,305 L75,310 L65,295 L60,270 L68,240 L72,210 L65,180 L60,150 L58,120 L62,90 L70,60 L80,35 Z" fill="#F0F8E8" stroke="#C8E6A0" stroke-width="2"/>
-      <circle id="dot-taipei"    cx="105" cy="52"  r="10" fill="#FFB347" opacity=".4" class="region-dot"/>
-      <text x="105" y="56"  text-anchor="middle" font-size="7.5" fill="#7A5000" font-family="Nunito" font-weight="700">台北</text>
-      <circle id="dot-taoyuan"  cx="84"  cy="73"  r="9"  fill="#FF6B9D" opacity=".4" class="region-dot"/>
-      <text x="84"  y="77"  text-anchor="middle" font-size="7"   fill="#7A001D" font-family="Nunito" font-weight="700">桃園</text>
-      <circle id="dot-hsinchu"  cx="76"  cy="98"  r="8"  fill="#B39DDB" opacity=".4" class="region-dot"/>
-      <text x="76"  y="102" text-anchor="middle" font-size="7"   fill="#4A2080" font-family="Nunito" font-weight="700">新竹</text>
-      <circle id="dot-taichung" cx="85"  cy="150" r="12" fill="#4FC3F7" opacity=".5" class="region-dot"/>
-      <text x="85"  y="154" text-anchor="middle" font-size="7.5" fill="#003050" font-family="Nunito" font-weight="700">台中</text>
-      <circle id="dot-tainan"   cx="90"  cy="218" r="10" fill="#6BCB77" opacity=".4" class="region-dot"/>
-      <text x="90"  y="222" text-anchor="middle" font-size="7"   fill="#1A5000" font-family="Nunito" font-weight="700">台南</text>
-      <circle id="dot-kaohsiung" cx="96" cy="262" r="12" fill="#FF7B7B" opacity=".5" class="region-dot"/>
-      <text x="96"  y="266" text-anchor="middle" font-size="7.5" fill="#600000" font-family="Nunito" font-weight="700">高雄</text>
-      <circle id="dot-hualien"  cx="134" cy="153" r="8"  fill="#FFD93D" opacity=".4" class="region-dot"/>
-      <text x="134" y="157" text-anchor="middle" font-size="7"   fill="#704000" font-family="Nunito" font-weight="700">花蓮</text>
-    </svg>
-    <div id="mapLegend" style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:10px;font-size:12px;font-weight:700;color:var(--muted)"></div>
+    <div id="svgWrap" style="display:flex;justify-content:center;"></div>
+    <div class="map-stats-grid">
+      <div class="map-stat"><div class="map-stat-num" id="map-total-city">0</div><div class="map-stat-label">📍 活躍縣市</div></div>
+      <div class="map-stat"><div class="map-stat-num" id="map-top-city">—</div><div class="map-stat-label">🔥 最熱城市</div></div>
+      <div class="map-stat"><div class="map-stat-num" id="map-total-checkins">0</div><div class="map-stat-label">✅ 累計簽到</div></div>
+    </div>
   </div>
-  <h2 class="sec-title" style="font-size:21px;margin-bottom:10px">💬 激勵討論區</h2>
+  <h2 class="sec-title" style="font-size:20px;margin-bottom:9px">💬 激勵討論區</h2>
   <div class="discuss-input-wrap">
     <input class="discuss-input" id="discussInput" placeholder="分享你的激勵話語... 💪" maxlength="100"/>
     <button class="discuss-send" onclick="sendMessage()">發送</button>
@@ -364,36 +607,75 @@ nav{background:#fff;border-bottom:2px solid var(--border);padding:0 20px;display
   <div class="discuss-list" id="discussList"></div>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════
+     MAIN SCRIPT
+══════════════════════════════════════════════════════════════ -->
 <script>
+// ── CITY DATA ──────────────────────────────────────────────────
+const CITIES={
+  taipei:        {name:'台北市',      x:200,y:100, color:'#FF6B9D'},
+  newtaipei:     {name:'新北市',      x:185,y:118, color:'#FF9F43'},
+  taoyuan:       {name:'桃園市',      x:158,y:132, color:'#FFD93D'},
+  hsinchu_city:  {name:'新竹市',      x:145,y:155, color:'#6BCB77'},
+  hsinchu_county:{name:'新竹縣',      x:160,y:168, color:'#4FC3F7'},
+  keelung:       {name:'基隆市',      x:215,y:88,  color:'#B39DDB'},
+  yilan:         {name:'宜蘭縣',      x:234,y:128, color:'#FF7B7B'},
+  taichung:      {name:'台中市',      x:155,y:215, color:'#4FC3F7'},
+  miaoli:        {name:'苗栗縣',      x:148,y:186, color:'#6BCB77'},
+  changhua:      {name:'彰化縣',      x:148,y:238, color:'#FFB347'},
+  nantou:        {name:'南投縣',      x:178,y:235, color:'#B39DDB'},
+  yunlin:        {name:'雲林縣',      x:148,y:258, color:'#FF6B9D'},
+  tainan:        {name:'台南市',      x:155,y:305, color:'#6BCB77'},
+  kaohsiung:     {name:'高雄市',      x:168,y:345, color:'#FF7B7B'},
+  chiayi_city:   {name:'嘉義市',      x:152,y:278, color:'#FFD93D'},
+  chiayi_county: {name:'嘉義縣',      x:166,y:285, color:'#FF9F43'},
+  pingtung:      {name:'屏東縣',      x:178,y:378, color:'#4FC3F7'},
+  hualien:       {name:'花蓮縣',      x:228,y:225, color:'#FFD93D'},
+  taitung:       {name:'台東縣',      x:220,y:310, color:'#FF9F43'},
+  penghu:        {name:'澎湖縣',      x:88, y:285, color:'#B39DDB'},
+  kinmen:        {name:'金門縣',      x:65, y:310, color:'#6BCB77'},
+  matsu:         {name:'連江縣',      x:105,y:58,  color:'#FF6B9D'},
+};
+const CITY_KEYS=Object.keys(CITIES);
 const CATS=['kung','meditate','sport'];
-const REGION_KEYS=['taipei','taoyuan','hsinchu','taichung','tainan','kaohsiung','hualien'];
-const REGION_NAME={taipei:'台北',taoyuan:'桃園',hsinchu:'新竹',taichung:'台中',tainan:'台南',kaohsiung:'高雄',hualien:'花蓮'};
 const AVATARS=['🌟','💪','🔥','🌸','⚡','🐉','🌊','🎯','🦋','🌈'];
 
-function todayKey(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function weekLabel(){const d=new Date();const thu=new Date(d);thu.setDate(d.getDate()-(d.getDay()+6)%7+3);const wk=Math.round((thu-new Date(thu.getFullYear(),0,1))/604800000);return`${thu.getFullYear()}-W${String(wk).padStart(2,'0')}`;}
+// ── DATE HELPERS ───────────────────────────────────────────────
+function todayKey(){
+  const d=new Date();
+  return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+// ISO week Mon-Sun
+function weekKey(){
+  const d=new Date();
+  const day=d.getDay()||7; // Mon=1 … Sun=7
+  const mon=new Date(d); mon.setHours(0,0,0,0); mon.setDate(d.getDate()-(day-1));
+  return`${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
+}
 
-let userId=localStorage.getItem('userId');
-if(!userId){userId='u_'+Math.random().toString(36).slice(2,10);localStorage.setItem('userId',userId);}
-let username=localStorage.getItem('username')||'';
-let userEmoji=localStorage.getItem('userEmoji')||AVATARS[Math.floor(Math.random()*AVATARS.length)];
-localStorage.setItem('userEmoji',userEmoji);
+// ── STATE ──────────────────────────────────────────────────────
+let currentUser   = null; // Firebase Auth user
+let userId        = null;
+let username      = '';
+let userPhotoURL  = '';
+let userCity      = '';
+let localToday    = {};   // {date, kung, meditate, sport}
+let globalStats   = {totals:{kung:0,meditate:0,sport:0},today:{kung:0,meditate:0,sport:0},week:{kung:0,meditate:0,sport:0}};
+let myStats       = {totals:{kung:0,meditate:0,sport:0},today:{kung:0,meditate:0,sport:0},week:{kung:0,meditate:0,sport:0},history:{}};
+let cityCounts    = {};
+let allUsers      = [];
+let lbTab         = 'global';
+let todayDoneCount= 0; // how many cats checked today (for celebration)
 
-let localToday=JSON.parse(localStorage.getItem('localToday')||'{}');
-if(localToday.date!==todayKey()){localToday={date:todayKey(),kung:false,meditate:false,sport:false};localStorage.setItem('localToday',JSON.stringify(localToday));}
-
-let globalStats={totals:{kung:0,meditate:0,sport:0},today:{kung:0,meditate:0,sport:0},week:{kung:0,meditate:0,sport:0}};
-let myStats={totals:{kung:0,meditate:0,sport:0},today:{kung:0,meditate:0,sport:0},week:{kung:0,meditate:0,sport:0},history:{}};
-let regionCounts={};
-let allUsers=[];
-
+// ── CURSOR ─────────────────────────────────────────────────────
 const cursor=document.getElementById('cursor');
 document.addEventListener('mousemove',e=>{cursor.style.left=e.clientX+'px';cursor.style.top=e.clientY+'px';});
+
 function burst(x,y){
-  ['🎉','⭐','✨','🌟','💥','🎊','❤️','🔥','💪'].forEach((em,i)=>{
+  ['🎉','⭐','✨','🌟','💥','🎊','❤️','🔥','💪'].forEach(em=>{
     const el=document.createElement('div');el.className='burst-emoji';el.textContent=em;
     el.style.left=x+'px';el.style.top=y+'px';
-    const a=Math.random()*360;const dist=60+Math.random()*80;
+    const a=Math.random()*360,dist=60+Math.random()*80;
     el.style.setProperty('--dx',Math.cos(a*Math.PI/180)*dist+'px');
     el.style.setProperty('--dy',Math.sin(a*Math.PI/180)*dist+'px');
     el.style.fontSize=(14+Math.random()*14)+'px';
@@ -401,15 +683,16 @@ function burst(x,y){
   });
 }
 
-const pc=document.getElementById('particles');
+// ── PARTICLES ──────────────────────────────────────────────────
 ['⭐','🌸','✨','💫','🌟','🎵','💎'].forEach(e=>{
   const p=document.createElement('div');p.className='particle';p.textContent=e;
   p.style.left=Math.random()*100+'vw';
   p.style.animationDuration=(9+Math.random()*11)+'s';
   p.style.animationDelay=(Math.random()*12)+'s';
-  pc.appendChild(p);
+  document.getElementById('particles').appendChild(p);
 });
 
+// ── TOAST ──────────────────────────────────────────────────────
 function showToast(title,msg){
   const t=document.getElementById('toast');
   document.getElementById('toastTitle').textContent=title;
@@ -417,92 +700,522 @@ function showToast(title,msg){
   t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);
 }
 
-let db,_ref,_set,_get,_update,_onValue,_push,_serverTimestamp,_increment;
+// ══════════════════════════════════════════════════════════════
+// CELEBRATION SYSTEM — 喜慶打鼓小孩風格（參考上傳圖片）
+// 圓臉胖嘟嘟、玫瑰腮紅、黑短髮、紅色中式服裝、大紅鼓
+// ══════════════════════════════════════════════════════════════
+
+/* ── 打鼓小孩 SVG ── 精準仿照上傳圖片：
+   圓胖臉、玫瑰腮紅、黑短髮、紅色中式唐裝金邊盤扣、
+   兩手高舉鼓棒、米白大鼓面、紅色鼓身、金色鼓釘、小腿型鼓腳 */
+function drumKidSVG(tx, ty, scl, animCls, shirtColor, drumBodyColor, noteOffset){
+  scl = scl||1;
+  const s = shirtColor||'#C41B1B';   // 紅色唐裝
+  const d = drumBodyColor||'#C41B1B'; // 紅色鼓身
+  const no = noteOffset||0;
+  // SVG g 的 transform-origin 設在角色腳底 (0,90)
+  return `
+<g transform="translate(${tx},${ty}) scale(${scl})" class="${animCls}" style="transform-box:fill-box;transform-origin:center bottom;">
+
+  <!-- ════ 鼓（畫在身體之下，視覺上在前方） ════ -->
+  <!-- 鼓腳左 -->
+  <rect x="-29" y="68" width="11" height="18" rx="5" fill="#B8860B"/>
+  <ellipse cx="-23" cy="86" rx="9" ry="5" fill="#8B6914"/>
+  <!-- 鼓腳右 -->
+  <rect x="18" y="68" width="11" height="18" rx="5" fill="#B8860B"/>
+  <ellipse cx="24" cy="86" rx="9" ry="5" fill="#8B6914"/>
+  <!-- 鼓身側面（立體感：下半橢圓） -->
+  <ellipse cx="0" cy="80" rx="34" ry="13" fill="${d}"/>
+  <!-- 鼓身矩形主體 -->
+  <rect x="-34" y="50" width="68" height="32" fill="${d}"/>
+  <!-- 鼓身上緣黑條 -->
+  <rect x="-34" y="50" width="68" height="5" rx="2" fill="#7B1010"/>
+  <!-- 鼓身下緣黑條 -->
+  <rect x="-34" y="76" width="68" height="5" rx="2" fill="#7B1010"/>
+  <!-- 金色大鼓釘 — 左 -->
+  <circle cx="-22" cy="64" r="5.5" fill="#FFD700" stroke="#A07800" stroke-width="1.2"/>
+  <circle cx="-22" cy="64" r="2.5" fill="#FFF0A0"/>
+  <!-- 金色大鼓釘 — 中 -->
+  <circle cx="0" cy="68" r="5.5" fill="#FFD700" stroke="#A07800" stroke-width="1.2"/>
+  <circle cx="0" cy="68" r="2.5" fill="#FFF0A0"/>
+  <!-- 金色大鼓釘 — 右 -->
+  <circle cx="22" cy="64" r="5.5" fill="#FFD700" stroke="#A07800" stroke-width="1.2"/>
+  <circle cx="22" cy="64" r="2.5" fill="#FFF0A0"/>
+  <!-- 米白鼓面 -->
+  <ellipse cx="0" cy="50" rx="34" ry="13" fill="#F6EFE0" stroke="#8B4513" stroke-width="2.2"/>
+  <!-- 鼓面紋理（中心圓） -->
+  <ellipse cx="0" cy="50" rx="20" ry="7" fill="none" stroke="#D4C8A8" stroke-width="1"/>
+
+  <!-- ════ 身體（紅色中式唐裝）════ -->
+  <!-- 衣服下擺 -->
+  <path d="M-22,18 C-26,36 -26,52 -24,54 L24,54 C26,52 26,36 22,18 Z" fill="${s}"/>
+  <!-- 衣服左片（深色陰影） -->
+  <path d="M-22,18 C-18,28 -10,36 0,38 C-10,44 -22,50 -24,54 Z" fill="rgba(0,0,0,0.10)"/>
+  <!-- 衣領 V 形金邊 -->
+  <path d="M-10,16 L0,28 L10,16" stroke="#FFD700" stroke-width="3" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- 盤扣 1 -->
+  <circle cx="0" cy="24" r="4.5" fill="#FFD700" stroke="#A07800" stroke-width="1"/>
+  <line x1="-6" y1="24" x2="6" y2="24" stroke="#A07800" stroke-width="1.5"/>
+  <!-- 盤扣 2 -->
+  <circle cx="0" cy="36" r="3.5" fill="#FFD700" stroke="#A07800" stroke-width="1"/>
+
+  <!-- ════ 左手臂 ════ -->
+  <!-- 上臂向左上 -->
+  <path d="M-20,20 Q-38,8 -44,-6" stroke="${s}" stroke-width="14" stroke-linecap="round" fill="none"/>
+  <!-- 手腕/手掌 -->
+  <ellipse cx="-44" cy="-7" rx="10" ry="9" fill="#F2C4A0"/>
+  <!-- 手指（略） -->
+  <ellipse cx="-50" cy="-14" rx="4" ry="3" fill="#F2C4A0"/>
+  <ellipse cx="-44" cy="-16" rx="4" ry="3" fill="#F2C4A0"/>
+  <!-- 左鼓棒 -->
+  <line x1="-46" y1="-14" x2="-58" y2="-44" stroke="#4A2800" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- 鼓棒頭 -->
+  <ellipse cx="-58" cy="-44" rx="5" ry="6" fill="#3A1E00"/>
+
+  <!-- ════ 右手臂 ════ -->
+  <path d="M20,20 Q38,8 44,-6" stroke="${s}" stroke-width="14" stroke-linecap="round" fill="none"/>
+  <ellipse cx="44" cy="-7" rx="10" ry="9" fill="#F2C4A0"/>
+  <ellipse cx="50" cy="-14" rx="4" ry="3" fill="#F2C4A0"/>
+  <ellipse cx="44" cy="-16" rx="4" ry="3" fill="#F2C4A0"/>
+  <!-- 右鼓棒 -->
+  <line x1="46" y1="-14" x2="58" y2="-44" stroke="#4A2800" stroke-width="4.5" stroke-linecap="round"/>
+  <ellipse cx="58" cy="-44" rx="5" ry="6" fill="#3A1E00"/>
+
+  <!-- ════ 頭部（圓臉胖嘟嘟，完全仿圖片） ════ -->
+  <!-- 脖子 -->
+  <rect x="-8" y="8" width="16" height="12" rx="6" fill="#F2C4A0"/>
+  <!-- 主臉（圓胖橢圓）-->
+  <ellipse cx="0" cy="-16" rx="30" ry="28" fill="#F2C4A0"/>
+  <!-- 耳朵 左 -->
+  <ellipse cx="-29" cy="-14" rx="7" ry="9" fill="#F2C4A0"/>
+  <ellipse cx="-29" cy="-14" rx="4" ry="6" fill="#EDAA80"/>
+  <!-- 耳朵 右 -->
+  <ellipse cx="29" cy="-14" rx="7" ry="9" fill="#F2C4A0"/>
+  <ellipse cx="29" cy="-14" rx="4" ry="6" fill="#EDAA80"/>
+  <!-- 黑色短髮（仿圖：蓬鬆圓弧頂，兩側厚）-->
+  <ellipse cx="0" cy="-38" rx="27" ry="14" fill="#1E0F08"/>
+  <ellipse cx="-22" cy="-26" rx="11" ry="16" fill="#1E0F08"/>
+  <ellipse cx="22" cy="-26" rx="11" ry="16" fill="#1E0F08"/>
+  <!-- 髮際線修飾（讓臉不被蓋住）-->
+  <ellipse cx="0" cy="-20" rx="24" ry="22" fill="#F2C4A0"/>
+  <!-- 玫瑰腮紅（大、飽滿，圖片特色）-->
+  <ellipse cx="-18" cy="-8" rx="11" ry="9" fill="#F09090" opacity="0.55"/>
+  <ellipse cx="18" cy="-8" rx="11" ry="9" fill="#F09090" opacity="0.55"/>
+  <!-- 眉毛（英氣、略向上挑）-->
+  <path d="M-20,-30 Q-13,-36 -7,-30" stroke="#1E0F08" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M7,-30 Q13,-36 20,-30" stroke="#1E0F08" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- 眼睛（大圓眼，有神）-->
+  <ellipse cx="-13" cy="-20" rx="6" ry="6.5" fill="#1E0F08"/>
+  <ellipse cx="13" cy="-20" rx="6" ry="6.5" fill="#1E0F08"/>
+  <!-- 眼白反光點 -->
+  <circle cx="-11" cy="-22" r="2.2" fill="#fff"/>
+  <circle cx="15" cy="-22" r="2.2" fill="#fff"/>
+  <!-- 鼻子（圓鈕）-->
+  <ellipse cx="0" cy="-10" rx="4.5" ry="3.5" fill="#DC9878"/>
+  <!-- 嘴巴（開懷大笑，弧度明顯）-->
+  <path d="M-11,-2 Q0,10 11,-2" stroke="#C05050" stroke-width="3" fill="#FF9999" stroke-linecap="round"/>
+
+  <!-- ════ 音符浮動 ════ -->
+  <g class="note-anim">
+    <text x="${60+no}" y="-48" font-size="18" fill="#FFD93D" font-family="serif" opacity="0.95">♪</text>
+  </g>
+  <g class="note-anim" style="animation-delay:0.45s">
+    <text x="${-74+no}" y="-36" font-size="14" fill="#fff" font-family="serif" opacity="0.85">♫</text>
+  </g>
+</g>`;
+}
+
+/* ── 跳舞歡呼大人（手持彩球，仿節慶風格）── */
+function dancerSVG(tx, ty, scl, animCls, shirtColor){
+  const sc2=shirtColor||'#4FC3F7';
+  const ballL='#FFD93D'; const ballR='#FF6B9D';
+  return`
+<g transform="translate(${tx},${ty}) scale(${scl})" class="${animCls}" style="transform-box:fill-box;transform-origin:center bottom;">
+  <!-- 陰影 -->
+  <ellipse cx="0" cy="66" rx="18" ry="5" fill="rgba(0,0,0,0.10)"/>
+  <!-- 腳（開叉跳躍姿）-->
+  <line x1="-8" y1="40" x2="-18" y2="64" stroke="${sc2}" stroke-width="9" stroke-linecap="round"/>
+  <line x1="8"  y1="40" x2="20"  y2="62" stroke="${sc2}" stroke-width="9" stroke-linecap="round"/>
+  <!-- 身體 -->
+  <rect x="-17" y="8" width="34" height="34" rx="10" fill="${sc2}"/>
+  <!-- 領帶/裝飾 -->
+  <path d="M-4,8 L0,22 L4,8 Z" fill="rgba(255,255,255,0.3)"/>
+  <!-- 左手臂高舉（彩球）-->
+  <path d="M-17,18 Q-34,2 -40,-14" stroke="${sc2}" stroke-width="11" stroke-linecap="round" fill="none"/>
+  <circle cx="-40" cy="-14" r="8" fill="#F2C4A0"/>
+  <!-- 彩球 左 -->
+  <circle cx="-44" cy="-28" r="9" fill="${ballL}" stroke="#DAA300" stroke-width="1.5"/>
+  <ellipse cx="-47" cy="-32" rx="3" ry="2" fill="rgba(255,255,255,0.5)" transform="rotate(-30,-47,-32)"/>
+  <!-- 右手臂高舉（彩球）-->
+  <path d="M17,18 Q34,2 40,-14" stroke="${sc2}" stroke-width="11" stroke-linecap="round" fill="none"/>
+  <circle cx="40" cy="-14" r="8" fill="#F2C4A0"/>
+  <!-- 彩球 右 -->
+  <circle cx="44" cy="-28" r="9" fill="${ballR}" stroke="#CC0055" stroke-width="1.5"/>
+  <ellipse cx="41" cy="-32" rx="3" ry="2" fill="rgba(255,255,255,0.5)" transform="rotate(30,41,-32)"/>
+  <!-- 頭（圓胖臉，和小孩同風格）-->
+  <ellipse cx="0" cy="-12" rx="22" ry="21" fill="#F2C4A0"/>
+  <!-- 耳朵 -->
+  <ellipse cx="-21" cy="-10" rx="5" ry="7" fill="#F2C4A0"/>
+  <ellipse cx="21"  cy="-10" rx="5" ry="7" fill="#F2C4A0"/>
+  <!-- 頭髮 -->
+  <ellipse cx="0" cy="-28" rx="22" ry="10" fill="#1E0F08"/>
+  <ellipse cx="-18" cy="-18" rx="9"  ry="14" fill="#1E0F08"/>
+  <ellipse cx="18"  cy="-18" rx="9"  ry="14" fill="#1E0F08"/>
+  <ellipse cx="0" cy="-14" rx="18" ry="17" fill="#F2C4A0"/>
+  <!-- 腮紅 -->
+  <ellipse cx="-13" cy="-6" rx="8" ry="7" fill="#F09090" opacity="0.55"/>
+  <ellipse cx="13"  cy="-6" rx="8" ry="7" fill="#F09090" opacity="0.55"/>
+  <!-- 眉毛 -->
+  <path d="M-15,-22 Q-9,-27 -4,-22" stroke="#1E0F08" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M4,-22 Q9,-27 15,-22"   stroke="#1E0F08" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- 眼睛（彎彎笑眼）-->
+  <path d="M-12,-16 Q-8,-21 -4,-16" stroke="#1E0F08" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M4,-16 Q8,-21 12,-16"   stroke="#1E0F08" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- 鼻子 -->
+  <ellipse cx="0" cy="-9" rx="3.5" ry="2.5" fill="#DC9878"/>
+  <!-- 嘴巴（大笑）-->
+  <path d="M-10,-1 Q0,10 10,-1" stroke="#C05050" stroke-width="2.5" fill="#FF9999" stroke-linecap="round"/>
+  <!-- 歡呼感嘆號（浮動）-->
+  <text x="28" y="-38" font-size="14" fill="#FFD93D" font-family="serif">🎊</text>
+</g>`;
+}
+
+/* ── 組合場景 ── */
+function makeScene1(){
+  // 1個打鼓小孩，置中放大，仿照圖片氣勢
+  return`<svg viewBox="-100 -75 200 185" style="width:min(300px,82vw);height:auto;overflow:visible">
+    <!-- 背景光暈 -->
+    <radialGradient id="g1" cx="50%" cy="70%" r="50%">
+      <stop offset="0%" stop-color="#FFE0A0" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#FFD93D" stop-opacity="0"/>
+    </radialGradient>
+    <ellipse cx="0" cy="60" rx="90" ry="50" fill="url(#g1)"/>
+    ${drumKidSVG(0, 0, 1.15, 'char-bounce', '#C41B1B','#C41B1B', 0)}
+  </svg>`;
+}
+
+function makeScene2(){
+  // 4個小孩（不同顏色唐裝），像鼓隊一起歡慶
+  return`<svg viewBox="-210 -75 420 185" style="width:min(500px,94vw);height:auto;overflow:visible">
+    <radialGradient id="g2" cx="50%" cy="70%" r="50%">
+      <stop offset="0%" stop-color="#FFD0E0" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#FFD93D" stop-opacity="0"/>
+    </radialGradient>
+    <ellipse cx="0" cy="60" rx="200" ry="55" fill="url(#g2)"/>
+    <!-- 星星裝飾 -->
+    <text x="-190" y="-50" font-size="18" fill="#FFD93D" opacity="0.9">⭐</text>
+    <text x=" 175" y="-55" font-size="18" fill="#FF6B9D" opacity="0.9">✨</text>
+    ${drumKidSVG(-138,  4, 0.80, 'char-bounce2', '#C41B1B','#C41B1B',  6)}
+    ${drumKidSVG( -44, -6, 0.95, 'char-bounce',  '#1A3FA8','#1A3FA8', -6)}
+    ${drumKidSVG(  50, -6, 0.90, 'char-bounce3', '#0D7A3A','#0D7A3A',  8)}
+    ${drumKidSVG( 145,  4, 0.80, 'char-bounce4', '#7B5200','#9B4400', -4)}
+  </svg>`;
+}
+
+function makeScene3(){
+  // 5個打鼓小孩 + 3個大人 歡呼跳躍，大場面全員慶典
+  return`<svg viewBox="-290 -90 580 210" style="width:min(620px,98vw);height:auto;overflow:visible">
+    <!-- 背景漸層光 -->
+    <radialGradient id="g3" cx="50%" cy="65%" r="55%">
+      <stop offset="0%" stop-color="#FFF0A0" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#FFD93D" stop-opacity="0"/>
+    </radialGradient>
+    <ellipse cx="0" cy="70" rx="270" ry="60" fill="url(#g3)"/>
+    <!-- 閃光星 -->
+    <text x="-270" y="-60" font-size="22" fill="#FFD93D">⭐</text>
+    <text x=" 250" y="-65" font-size="22" fill="#FF6B9D">🌟</text>
+    <text x="-50"  y="-78" font-size="28" fill="#FFD93D">✨</text>
+    <text x=" 80"  y="-72" font-size="20" fill="#6BCB77">🎊</text>
+    <text x="-130" y="-70" font-size="18" fill="#4FC3F7">🎉</text>
+    <!-- 大人（3個，手持彩球，穿不同顏色）-->
+    ${dancerSVG(-220, 12, 0.92, 'dance-bounce3', '#7B3FA0')}
+    ${dancerSVG(    0,-8, 1.08, 'dance-bounce',  '#FF6B9D')}
+    ${dancerSVG( 220, 12, 0.92, 'dance-bounce2', '#0D7A3A')}
+    <!-- 小孩（5個打鼓，各色唐裝）-->
+    ${drumKidSVG(-155,  8, 0.74, 'char-bounce2', '#C41B1B','#C41B1B',  4)}
+    ${drumKidSVG( -76,  2, 0.82, 'char-bounce4', '#1A3FA8','#1A3FA8', -6)}
+    ${drumKidSVG(  76,  2, 0.82, 'char-bounce5', '#0D7A3A','#0D7A3A',  8)}
+    ${drumKidSVG( 155,  8, 0.74, 'char-bounce3', '#7B5200','#9B4400', -4)}
+  </svg>`;
+}
+
+const CELEB_DATA={
+  1:{
+    bg:'linear-gradient(160deg,#FF4444 0%,#FF9900 60%,#FFD93D 100%)',
+    msg:'🥁 咚！太棒了！',
+    sub:'完成第一項簽到，繼續衝！',
+    chars: makeScene1,
+  },
+  2:{
+    bg:'linear-gradient(160deg,#4444CC 0%,#FF6B9D 50%,#FFB347 100%)',
+    msg:'🎊 哇！好厲害！',
+    sub:'完成兩項了！再拼最後一項！',
+    chars: makeScene2,
+  },
+  3:{
+    bg:'linear-gradient(160deg,#FFD93D 0%,#FF6B9D 40%,#6BCB77 100%)',
+    msg:'🎉🎉🎉 全部完成！超強的！',
+    sub:'三項全滿！你是今日習慣王者！👑',
+    chars: makeScene3,
+  },
+};
+
+function spawnConfetti(){
+  const ov=document.getElementById('celebOverlay');
+  const colors=['#FF6B9D','#FFD93D','#6BCB77','#4FC3F7','#B39DDB','#FF9F43','#FF7B7B','#fff','#CC2222'];
+  const shapes=['■','●','▲','★','♦'];
+  for(let i=0;i<100;i++){
+    const el=document.createElement('div');el.className='conf';
+    el.style.left=Math.random()*100+'vw';
+    el.style.top='-20px';
+    const sz=6+Math.random()*10;
+    el.style.width=sz+'px';el.style.height=sz+'px';
+    el.style.borderRadius=Math.random()>0.5?'50%':'3px';
+    el.style.background=colors[Math.floor(Math.random()*colors.length)];
+    el.style.animationDuration=(1.8+Math.random()*2.2)+'s';
+    el.style.animationDelay=(Math.random()*1.8)+'s';
+    ov.appendChild(el);
+    setTimeout(()=>el.remove(),5000);
+  }
+}
+
+function showCelebration(count){
+  const data=CELEB_DATA[count];if(!data)return;
+  const ov=document.getElementById('celebOverlay');
+  document.getElementById('celebBg').style.background=data.bg;
+  document.getElementById('celebMsg').textContent=data.msg;
+  document.getElementById('celebSub').textContent=data.sub;
+  document.getElementById('celebChars').innerHTML=data.chars();
+  ov.classList.add('show');
+  spawnConfetti();
+}
+function closeCeleb(){
+  const ov=document.getElementById('celebOverlay');
+  ov.classList.remove('show');
+  ov.querySelectorAll('.conf').forEach(e=>e.remove());
+}
+
+// ══════════════════════════════════════════════════════════════
+// FIREBASE + AUTH
+// ══════════════════════════════════════════════════════════════
+let db,_ref,_update,_onValue,_push,_increment,_get;
+let _unsubscribes=[];
 
 function initFirebase(){
-  db=window._db;_ref=window._ref;_set=window._set;_get=window._get;
-  _update=window._update;_onValue=window._onValue;_push=window._push;
-  _serverTimestamp=window._serverTimestamp;_increment=window._increment;
-  subscribeAll();
-  document.getElementById('loadingOverlay').classList.add('hide');
-  setTimeout(()=>document.getElementById('loadingOverlay').style.display='none',600);
+  db=window._db;_ref=window._ref;_update=window._update;
+  _onValue=window._onValue;_push=window._push;_increment=window._increment;_get=window._get;
+
+  // Auth state listener
+  window._onAuthStateChanged(window._auth, user=>{
+    if(user){
+      currentUser=user;
+      userId=user.uid;
+      userPhotoURL=user.photoURL||'';
+      username=user.displayName||'';
+      onUserLoggedIn();
+    } else {
+      // show login screen
+      document.getElementById('loginScreen').classList.remove('hide');
+      document.getElementById('loadingOverlay').classList.add('hide');
+      setTimeout(()=>document.getElementById('loadingOverlay').style.display='none',600);
+    }
+  });
 }
+
 window.addEventListener('firebase-ready',initFirebase);
 if(window._firebaseReady)initFirebase();
 
+async function signInGoogle(){
+  try{
+    await window._signInWithPopup(window._auth,window._provider);
+  }catch(e){
+    showToast('❌ 登入失敗','請稍後再試：'+e.message);
+  }
+}
+
+function signOutUser(){
+  window._signOut(window._auth).then(()=>{
+    // cleanup
+    _unsubscribes.forEach(u=>{ try{u();}catch(e){} });
+    _unsubscribes=[];
+    allUsers=[];
+    document.getElementById('mainNav').style.display='none';
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('loginScreen').classList.remove('hide');
+  });
+}
+
+async function onUserLoggedIn(){
+  // Hide login, show nav + main
+  document.getElementById('loginScreen').classList.add('hide');
+
+  // Load stored city & username from Firebase first
+  const snap=await _get(_ref(db,`users/${userId}/meta`));
+  const meta=snap.val()||{};
+  if(meta.city)userCity=meta.city;
+  if(meta.name)username=meta.name;
+
+  // Init local today tracking
+  localToday=JSON.parse(localStorage.getItem(`lt_${userId}`)||'{}');
+  if(localToday.date!==todayKey()){
+    localToday={date:todayKey(),kung:false,meditate:false,sport:false};
+    localStorage.setItem(`lt_${userId}`,JSON.stringify(localToday));
+  }
+
+  // Count how many already done today
+  todayDoneCount=[localToday.kung,localToday.meditate,localToday.sport].filter(Boolean).length;
+
+  // Nav user area
+  const navUser=document.getElementById('navUser');
+  navUser.innerHTML=userPhotoURL
+    ?`<img class="nav-avatar" src="${userPhotoURL}" referrerpolicy="no-referrer"><button class="nav-signout" onclick="signOutUser()">登出</button>`
+    :`<button class="nav-signout" onclick="signOutUser()">登出</button>`;
+
+  // Profile Google info
+  const pgi=document.getElementById('profileGoogleInfo');
+  pgi.innerHTML=userPhotoURL
+    ?`<img class="profile-google-avatar" src="${userPhotoURL}" referrerpolicy="no-referrer"><div><div class="profile-google-name">${esc(currentUser.displayName||'')}</div><div class="profile-google-email">${esc(currentUser.email||'')}</div></div><div style="margin-left:auto;font-size:11px;color:var(--mint);font-weight:800">✅ Google 帳號綁定</div>`
+    :`<span style="font-size:22px">👤</span><div><div class="profile-google-name">${esc(username)}</div></div>`;
+
+  // City selector
+  if(userCity){
+    document.getElementById('citySelect').value=userCity;
+    document.getElementById('cityCurrentLabel').textContent=CITIES[userCity]?CITIES[userCity].name:userCity;
+  }
+  // Username input
+  document.getElementById('usernameInput').value=username;
+
+  // Show UI
+  document.getElementById('mainNav').style.display='flex';
+  showPage('home');
+
+  // Hide loading
+  document.getElementById('loadingOverlay').classList.add('hide');
+  setTimeout(()=>document.getElementById('loadingOverlay').style.display='none',600);
+
+  subscribeAll();
+}
+
+// ── CITY SELECTOR ──────────────────────────────────────────────
+function onCityChange(val){
+  userCity=val;
+  const label=val&&CITIES[val]?CITIES[val].name:(val||'未選擇');
+  document.getElementById('cityCurrentLabel').textContent=label;
+  if(db&&userId)_update(_ref(db,`users/${userId}/meta`),{city:val});
+}
+
+// ── CHECK-IN ───────────────────────────────────────────────────
 async function doCheckin(cat,event){
+  if(!userCity){showToast('📍 請先選擇縣市','選好縣市後再簽到！');return;}
   if(localToday[cat])return;
-  if(!db){showToast('⚠️ 連線中','請稍候再試');return;}
+  if(!db)return;
+
   localToday[cat]=true;
-  localStorage.setItem('localToday',JSON.stringify(localToday));
+  localStorage.setItem(`lt_${userId}`,JSON.stringify(localToday));
+  todayDoneCount++;
   updateCheckinUI();
-  const today=todayKey();const week=weekLabel();
-  const region=guessTaiwanRegion();
+
+  const today=todayKey(),week=weekKey();
   const updates={};
-  updates[`global/today/${today}/${cat}`]=_increment(1);
-  updates[`global/week/${week}/${cat}`]=_increment(1);
-  updates[`global/totals/${cat}`]=_increment(1);
-  updates[`global/regions/${region}`]=_increment(1);
-  updates[`users/${userId}/meta/name`]=username||'匿名用戶';
-  updates[`users/${userId}/meta/emoji`]=userEmoji;
-  updates[`users/${userId}/totals/${cat}`]=_increment(1);
-  updates[`users/${userId}/today/${today}/${cat}`]=true;
-  updates[`users/${userId}/week/${week}/${cat}`]=_increment(1);
+  updates[`global/today/${today}/${cat}`]          =_increment(1);
+  updates[`global/week/${week}/${cat}`]            =_increment(1);
+  updates[`global/totals/${cat}`]                  =_increment(1);
+  updates[`global/cities/${userCity}`]             =_increment(1);
+  updates[`users/${userId}/meta/name`]             =username||currentUser.displayName||'匿名用戶';
+  updates[`users/${userId}/meta/email`]            =currentUser.email||'';
+  updates[`users/${userId}/meta/photo`]            =userPhotoURL||'';
+  updates[`users/${userId}/meta/city`]             =userCity;
+  updates[`users/${userId}/totals/${cat}`]         =_increment(1);
+  // today record
+  updates[`users/${userId}/days/${today}/${cat}`]  =true;
+  // week record
+  updates[`users/${userId}/weeks/${week}/${cat}`]  =_increment(1);
+
   try{
     await _update(_ref(db),updates);
     burst(event.clientX,event.clientY);
     checkAchievements();
+    // Show celebration after short delay
+    setTimeout(()=>showCelebration(todayDoneCount),400);
   }catch(e){
-    localToday[cat]=false;localStorage.setItem('localToday',JSON.stringify(localToday));
-    updateCheckinUI();showToast('❌ 簽到失敗','請檢查網路後重試');
+    localToday[cat]=false;todayDoneCount--;
+    localStorage.setItem(`lt_${userId}`,JSON.stringify(localToday));
+    updateCheckinUI();showToast('❌ 簽到失敗','請檢查網路');
   }
 }
 
-function guessTaiwanRegion(){
-  const cached=localStorage.getItem('myRegion');if(cached)return cached;
-  const r=REGION_KEYS[Math.floor(Math.random()*REGION_KEYS.length)];
-  localStorage.setItem('myRegion',r);return r;
-}
-
+// ── SUBSCRIPTIONS ──────────────────────────────────────────────
 function subscribeAll(){
-  const today=todayKey();const week=weekLabel();
-  _onValue(_ref(db,`global/today/${today}`),snap=>{const v=snap.val()||{};globalStats.today={kung:v.kung||0,meditate:v.meditate||0,sport:v.sport||0};renderGlobalStats();});
-  _onValue(_ref(db,`global/week/${week}`),snap=>{const v=snap.val()||{};globalStats.week={kung:v.kung||0,meditate:v.meditate||0,sport:v.sport||0};renderGlobalStats();});
-  _onValue(_ref(db,'global/totals'),snap=>{const v=snap.val()||{};globalStats.totals={kung:v.kung||0,meditate:v.meditate||0,sport:v.sport||0};renderGlobalStats();});
-  _onValue(_ref(db,'global/regions'),snap=>{regionCounts=snap.val()||{};renderMap();});
-  _onValue(_ref(db,`users/${userId}`),snap=>{
-    const v=snap.val()||{};const tots=v.totals||{};const tod=(v.today||{})[today]||{};const wk=(v.week||{})[week]||{};
+  const today=todayKey(),week=weekKey();
+  const unsub=(path,cb)=>{const u=_onValue(_ref(db,path),cb);_unsubscribes.push(u);};
+
+  unsub(`global/today/${today}`,snap=>{
+    const v=snap.val()||{};
+    globalStats.today={kung:v.kung||0,meditate:v.meditate||0,sport:v.sport||0};
+    renderGlobalStats();
+  });
+  unsub(`global/week/${week}`,snap=>{
+    const v=snap.val()||{};
+    globalStats.week={kung:v.kung||0,meditate:v.meditate||0,sport:v.sport||0};
+    renderGlobalStats();
+  });
+  unsub('global/totals',snap=>{
+    const v=snap.val()||{};
+    globalStats.totals={kung:v.kung||0,meditate:v.meditate||0,sport:v.sport||0};
+    renderGlobalStats();
+  });
+  unsub('global/cities',snap=>{cityCounts=snap.val()||{};renderMap();renderMapStats();});
+
+  unsub(`users/${userId}`,snap=>{
+    const v=snap.val()||{};
+    const tots=v.totals||{};
+    // today stats
+    const todayEntry=(v.days||{})[today]||{};
+    // week stats from weeks node
+    const weekEntry=(v.weeks||{})[week]||{};
     myStats.totals={kung:tots.kung||0,meditate:tots.meditate||0,sport:tots.sport||0};
-    myStats.today={kung:tod.kung?1:0,meditate:tod.meditate?1:0,sport:tod.sport?1:0};
-    myStats.week={kung:wk.kung||0,meditate:wk.meditate||0,sport:wk.sport||0};
+    myStats.today ={kung:todayEntry.kung?1:0,meditate:todayEntry.meditate?1:0,sport:todayEntry.sport?1:0};
+    myStats.week  ={kung:weekEntry.kung||0,meditate:weekEntry.meditate||0,sport:weekEntry.sport||0};
+    // Build history from days
     myStats.history={};
-    Object.entries(v.today||{}).forEach(([date,cats])=>{myStats.history[date]=cats;});
-    if(tod.kung)localToday.kung=true;if(tod.meditate)localToday.meditate=true;if(tod.sport)localToday.sport=true;
-    localStorage.setItem('localToday',JSON.stringify(localToday));
+    Object.entries(v.days||{}).forEach(([date,cats])=>{myStats.history[date]=cats;});
+    // Sync checkin state from DB
+    if(todayEntry.kung)   localToday.kung=true;
+    if(todayEntry.meditate)localToday.meditate=true;
+    if(todayEntry.sport)  localToday.sport=true;
+    localStorage.setItem(`lt_${userId}`,JSON.stringify(localToday));
+    todayDoneCount=[localToday.kung,localToday.meditate,localToday.sport].filter(Boolean).length;
     updateCheckinUI();renderMyStats();renderCalendar();renderChallenges();renderAchievements();
   });
-  _onValue(_ref(db,'users'),snap=>{
+
+  unsub('users',snap=>{
     allUsers=[];
-    snap.forEach(child=>{const d=child.val();const tots=d.totals||{};allUsers.push({id:child.key,name:(d.meta&&d.meta.name)||'匿名用戶',emoji:(d.meta&&d.meta.emoji)||'⭐',total:(tots.kung||0)+(tots.meditate||0)+(tots.sport||0),kung:tots.kung||0,meditate:tots.meditate||0,sport:tots.sport||0,isMe:child.key===userId});});
-    allUsers.sort((a,b)=>b.total-a.total);renderLeaderboard();
+    snap.forEach(child=>{
+      const d=child.val();const tots=d.totals||{};const meta=d.meta||{};
+      allUsers.push({
+        id:child.key,name:meta.name||'匿名用戶',photo:meta.photo||'',
+        emoji:AVATARS[Math.abs(child.key.charCodeAt(3))%AVATARS.length],
+        city:meta.city||'',
+        total:(tots.kung||0)+(tots.meditate||0)+(tots.sport||0),
+        kung:tots.kung||0,meditate:tots.meditate||0,sport:tots.sport||0,
+        isMe:child.key===userId
+      });
+    });
+    allUsers.sort((a,b)=>b.total-a.total);
+    renderGlobalLeaderboard();renderCityLeaderboard();
   });
-  _onValue(_ref(db,'discussions'),snap=>{const msgs=[];snap.forEach(child=>{msgs.unshift({...child.val(),id:child.key});});renderDiscussions(msgs);});
+
+  unsub('discussions',snap=>{
+    const msgs=[];snap.forEach(c=>{msgs.unshift({...c.val(),id:c.key});});
+    renderDiscussions(msgs);
+  });
 }
 
-function updateCheckinUI(){
-  CATS.forEach(cat=>{
-    const done=localToday[cat];
-    document.getElementById('card-'+cat).classList.toggle('done',done);
-    document.getElementById('badge-'+cat).style.display=done?'':'none';
-    const btn=document.getElementById('btn-'+cat);
-    btn.textContent=done?'✅ 已完成':'立即簽到';btn.disabled=done;
-  });
-}
-
+// ── RENDER GLOBAL STATS ────────────────────────────────────────
 function renderGlobalStats(){
-  document.getElementById('live-kung').textContent=`🥋 練功 ${globalStats.today.kung}`;
-  document.getElementById('live-meditate').textContent=`🧘 打坐 ${globalStats.today.meditate}`;
-  document.getElementById('live-sport').textContent=`🏃 運動 ${globalStats.today.sport}`;
+  document.getElementById('live-kung').textContent=`🥋 ${globalStats.today.kung}`;
+  document.getElementById('live-meditate').textContent=`🧘 ${globalStats.today.meditate}`;
+  document.getElementById('live-sport').textContent=`🏃 ${globalStats.today.sport}`;
   ['kung','meditate','sport'].forEach(c=>{
     document.getElementById('today-'+c).textContent=globalStats.today[c];
     document.getElementById('week-'+c).textContent=globalStats.week[c];
@@ -518,50 +1231,79 @@ function renderMyStats(){
   });
 }
 
+function updateCheckinUI(){
+  CATS.forEach(cat=>{
+    const done=localToday[cat];
+    document.getElementById('card-'+cat).classList.toggle('done',done);
+    document.getElementById('badge-'+cat).style.display=done?'':'none';
+    const btn=document.getElementById('btn-'+cat);
+    btn.textContent=done?'✅ 已完成':'立即簽到';btn.disabled=done;
+  });
+}
+
+// ── ACHIEVEMENTS ───────────────────────────────────────────────
 const ACHIEVEMENTS=[
-  {id:'first_kung',label:'初次練功',emoji:'🥋',check:()=>myStats.totals.kung>=1},
-  {id:'first_meditate',label:'初次打坐',emoji:'🧘',check:()=>myStats.totals.meditate>=1},
-  {id:'first_sport',label:'初次運動',emoji:'🏃',check:()=>myStats.totals.sport>=1},
-  {id:'triple',label:'全能勇士',emoji:'🌟',check:()=>localToday.kung&&localToday.meditate&&localToday.sport},
-  {id:'kung10',label:'練功達人',emoji:'🔥',check:()=>myStats.totals.kung>=10},
-  {id:'meditate10',label:'打坐高手',emoji:'💎',check:()=>myStats.totals.meditate>=10},
-  {id:'sport10',label:'運動狂人',emoji:'💪',check:()=>myStats.totals.sport>=10},
-  {id:'total30',label:'習慣王者',emoji:'👑',check:()=>(myStats.totals.kung+myStats.totals.meditate+myStats.totals.sport)>=30},
+  {id:'first_kung',    label:'初次練功',  emoji:'🥋',check:()=>myStats.totals.kung>=1},
+  {id:'first_meditate',label:'初次打坐',  emoji:'🧘',check:()=>myStats.totals.meditate>=1},
+  {id:'first_sport',   label:'初次運動',  emoji:'🏃',check:()=>myStats.totals.sport>=1},
+  {id:'triple',        label:'全能勇士',  emoji:'🌟',check:()=>localToday.kung&&localToday.meditate&&localToday.sport},
+  {id:'kung10',        label:'練功達人',  emoji:'🔥',check:()=>myStats.totals.kung>=10},
+  {id:'meditate10',    label:'打坐高手',  emoji:'💎',check:()=>myStats.totals.meditate>=10},
+  {id:'sport10',       label:'運動狂人',  emoji:'💪',check:()=>myStats.totals.sport>=10},
+  {id:'total30',       label:'習慣王者',  emoji:'👑',check:()=>(myStats.totals.kung+myStats.totals.meditate+myStats.totals.sport)>=30},
 ];
-let earnedBadges=JSON.parse(localStorage.getItem('earnedBadges')||'{}');
+let earnedBadgesLocal={};
 
 function checkAchievements(){
+  if(!userId)return;
+  const key=`eb_${userId}`;
+  earnedBadgesLocal=JSON.parse(localStorage.getItem(key)||'{}');
   ACHIEVEMENTS.forEach(a=>{
-    if(!earnedBadges[a.id]&&a.check()){earnedBadges[a.id]=true;localStorage.setItem('earnedBadges',JSON.stringify(earnedBadges));showToast('🏅 成就解鎖！',a.emoji+' '+a.label);}
+    if(!earnedBadgesLocal[a.id]&&a.check()){
+      earnedBadgesLocal[a.id]=true;
+      localStorage.setItem(key,JSON.stringify(earnedBadgesLocal));
+      showToast('🏅 成就解鎖！',a.emoji+' '+a.label);
+    }
   });
 }
 function renderAchievements(){
+  if(!userId)return;
+  const key=`eb_${userId}`;
+  earnedBadgesLocal=JSON.parse(localStorage.getItem(key)||'{}');
   const el=document.getElementById('achievementsList');if(!el)return;el.innerHTML='';
-  ACHIEVEMENTS.forEach(a=>{const earned=earnedBadges[a.id]||a.check();const div=document.createElement('div');div.className='badge '+(earned?'earned':'locked');div.textContent=a.emoji+' '+a.label;div.title=earned?'✅ 已解鎖':'🔒 尚未解鎖';el.appendChild(div);});
+  ACHIEVEMENTS.forEach(a=>{
+    const earned=earnedBadgesLocal[a.id]||a.check();
+    const div=document.createElement('div');div.className='badge '+(earned?'earned':'locked');
+    div.textContent=a.emoji+' '+a.label;div.title=earned?'✅ 已解鎖':'🔒 尚未解鎖';el.appendChild(div);
+  });
 }
 
+// ── CALENDAR ───────────────────────────────────────────────────
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
 function calNav(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--;}if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
 function renderCalendar(){
-  const el=document.getElementById('calGrid');const titleEl=document.getElementById('calTitle');if(!el||!titleEl)return;
-  titleEl.textContent=`${calYear}年 ${calMonth+1}月`;
-  const first=new Date(calYear,calMonth,1).getDay();const days=new Date(calYear,calMonth+1,0).getDate();const today=new Date();
-  el.innerHTML='';
+  const el=document.getElementById('calGrid');const te=document.getElementById('calTitle');if(!el||!te)return;
+  te.textContent=`${calYear}年 ${calMonth+1}月`;
+  const first=new Date(calYear,calMonth,1).getDay();
+  const days=new Date(calYear,calMonth+1,0).getDate();
+  const today=new Date();el.innerHTML='';
   for(let i=0;i<first;i++){const d=document.createElement('div');d.className='cal-day empty';el.appendChild(d);}
   for(let d=1;d<=days;d++){
     const key=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const entry=myStats.history[key]||{};const div=document.createElement('div');div.className='cal-day';div.textContent=d;
-    const count=[entry.kung,entry.meditate,entry.sport].filter(Boolean).length;
-    if(count===3)div.classList.add('all3');else if(count>0)div.classList.add('some');
+    const entry=myStats.history[key]||{};
+    const div=document.createElement('div');div.className='cal-day';div.textContent=d;
+    const cnt=[entry.kung,entry.meditate,entry.sport].filter(Boolean).length;
+    if(cnt===3)div.classList.add('all3');else if(cnt>0)div.classList.add('some');
     if(today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d)div.classList.add('today');
-    const dotRow=document.createElement('div');dotRow.className='dot-row';
-    if(entry.kung){const dot=document.createElement('div');dot.className='cal-dot k';dotRow.appendChild(dot);}
-    if(entry.meditate){const dot=document.createElement('div');dot.className='cal-dot m';dotRow.appendChild(dot);}
-    if(entry.sport){const dot=document.createElement('div');dot.className='cal-dot s';dotRow.appendChild(dot);}
-    div.appendChild(dotRow);el.appendChild(div);
+    const dr=document.createElement('div');dr.className='dot-row';
+    if(entry.kung){const dot=document.createElement('div');dot.className='cal-dot k';dr.appendChild(dot);}
+    if(entry.meditate){const dot=document.createElement('div');dot.className='cal-dot m';dr.appendChild(dot);}
+    if(entry.sport){const dot=document.createElement('div');dot.className='cal-dot s';dr.appendChild(dot);}
+    div.appendChild(dr);el.appendChild(div);
   }
 }
 
+// ── CHALLENGES ─────────────────────────────────────────────────
 const CHALLENGES=[
   {label:'🎯 本月簽到20次',target:20,get:()=>myStats.totals.kung+myStats.totals.meditate+myStats.totals.sport,reward:'金色王冠 👑'},
   {label:'🥋 練功累計10次',target:10,get:()=>myStats.totals.kung,reward:'練功大師 🥋'},
@@ -570,28 +1312,133 @@ const CHALLENGES=[
 ];
 function renderChallenges(){
   const el=document.getElementById('challengeGrid');if(!el)return;el.innerHTML='';
-  CHALLENGES.forEach(c=>{const cur=c.get();const pct=Math.min(100,Math.round(cur/c.target*100));const done=pct>=100;const div=document.createElement('div');div.className='challenge-card';div.innerHTML=`<div class="challenge-title">${c.label}${done?' ✅':''}</div><div class="challenge-desc">完成獎勵：${c.reward}</div><div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%;background:${done?'var(--mint)':'var(--pink)'}"></div></div><div class="progress-text">${cur}/${c.target} (${pct}%)</div>`;el.appendChild(div);});
-}
-
-function renderLeaderboard(){
-  const el=document.getElementById('lbList');if(!el)return;
-  if(!allUsers.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">還沒有人簽到，成為第一個！🎉</div>';return;}
-  el.innerHTML='';
-  allUsers.slice(0,50).forEach((p,i)=>{
-    const rank=i+1;const div=document.createElement('div');div.className='lb-row';if(p.isMe)div.style.background='#FFF9E0';
-    const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'';const rankClass=rank<=3?'r'+rank:'';
-    const bgColors=['#FFE0F0','#E0F0FF','#E0FFE8','#FFF0E0','#F0E0FF'];
-    div.innerHTML=`<div class="lb-rank ${rankClass}">${medal||rank}</div><div class="lb-avatar" style="background:${bgColors[i%bgColors.length]}">${p.emoji}</div><div style="flex:1"><div class="lb-name">${p.name}${p.isMe?' 👈 我':''}</div><div class="lb-sub">🥋${p.kung} 🧘${p.meditate} 🏃${p.sport}</div></div><div class="lb-score">${p.total}</div>`;
+  CHALLENGES.forEach(c=>{
+    const cur=c.get(),pct=Math.min(100,Math.round(cur/c.target*100)),done=pct>=100;
+    const div=document.createElement('div');div.className='challenge-card';
+    div.innerHTML=`<div class="challenge-title">${c.label}${done?' ✅':''}</div><div class="challenge-desc">完成獎勵：${c.reward}</div><div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%;background:${done?'var(--mint)':'var(--pink)'}"></div></div><div class="progress-text">${cur}/${c.target} (${pct}%)</div>`;
     el.appendChild(div);
   });
 }
 
-function renderMap(){
-  const vals=Object.values(regionCounts);const max=vals.length?Math.max(...vals):1;
-  REGION_KEYS.forEach(r=>{const dot=document.getElementById('dot-'+r);if(!dot)return;const v=regionCounts[r]||0;const ratio=v/Math.max(max,1);dot.setAttribute('opacity',(0.3+ratio*0.7).toFixed(2));dot.setAttribute('r',(7+ratio*13).toFixed(1));});
-  const legend=document.getElementById('mapLegend');if(legend){legend.innerHTML='';[...REGION_KEYS].sort((a,b)=>(regionCounts[b]||0)-(regionCounts[a]||0)).slice(0,3).forEach((r,i)=>{const span=document.createElement('span');span.textContent=(i===0?'🔥':i===1?'⭐':'👍')+' '+REGION_NAME[r]+' '+(regionCounts[r]||0)+'人';legend.appendChild(span);});}
+// ── LEADERBOARD ────────────────────────────────────────────────
+function switchLbTab(tab){
+  lbTab=tab;
+  document.getElementById('lbtab-global').classList.toggle('active',tab==='global');
+  document.getElementById('lbtab-city').classList.toggle('active',tab==='city');
+  document.getElementById('lb-global-panel').style.display=tab==='global'?'':'none';
+  document.getElementById('lb-city-panel').style.display=tab==='city'?'':'none';
 }
 
+function avatarEl(p,size){
+  if(p.photo)return`<img class="lb-avatar" src="${esc(p.photo)}" style="width:${size}px;height:${size}px" referrerpolicy="no-referrer">`;
+  return`<div class="lb-avatar-emoji" style="width:${size}px;height:${size}px;background:#FFF0E0">${p.emoji}</div>`;
+}
+
+function makeLbRow(p,rank,showCity){
+  const div=document.createElement('div');div.className='lb-row';
+  if(p.isMe)div.style.background='#FFF9E0';
+  const medal=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'';
+  const rc=rank<=3?'r'+rank:'';
+  const cb=showCity&&p.city&&CITIES[p.city]?`<span class="lb-city-badge">📍${CITIES[p.city].name}</span>`:'';
+  div.innerHTML=`
+    <div class="lb-rank ${rc}">${medal||rank}</div>
+    ${avatarEl(p,38)}
+    <div style="flex:1;min-width:0">
+      <div class="lb-name">${esc(p.name)}${p.isMe?' 👈 我':''}${cb}</div>
+      <div class="lb-sub">🥋${p.kung} 🧘${p.meditate} 🏃${p.sport}</div>
+    </div>
+    <div class="lb-score">${p.total}</div>`;
+  return div;
+}
+
+function renderGlobalLeaderboard(){
+  const el=document.getElementById('lbGlobalList');if(!el)return;
+  if(!allUsers.length){el.innerHTML='<div class="lb-empty">還沒有人簽到，成為第一個！🎉</div>';return;}
+  el.innerHTML='';
+  allUsers.slice(0,50).forEach((p,i)=>el.appendChild(makeLbRow(p,i+1,true)));
+}
+function renderCityLeaderboard(){
+  const el=document.getElementById('lbCityList');if(!el)return;
+  const sel=document.getElementById('lbCitySelect').value;
+  const list=sel?allUsers.filter(u=>u.city===sel):allUsers;
+  if(!list.length){el.innerHTML=`<div class="lb-empty">${sel?'此縣市還沒有人簽到！':'尚無資料。'}</div>`;return;}
+  el.innerHTML='';
+  list.forEach((p,i)=>el.appendChild(makeLbRow(p,i+1,!sel)));
+}
+
+// ── MAP ────────────────────────────────────────────────────────
+function buildTaiwanSVG(){
+  const ns='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('viewBox','50 40 230 400');svg.setAttribute('xmlns',ns);
+  svg.style.cssText='width:100%;max-width:320px;display:block;margin:0 auto;';
+
+  const outline=document.createElementNS(ns,'path');
+  outline.setAttribute('d','M200,58 L218,68 L228,90 L232,112 L230,140 L238,168 L242,198 L238,230 L228,265 L210,295 L192,320 L175,338 L162,342 L150,330 L145,308 L150,280 L152,255 L145,228 L140,200 L138,170 L142,140 L148,112 L158,85 L170,65 Z');
+  outline.setAttribute('fill','#F0F8E8');outline.setAttribute('stroke','#C8E6A0');outline.setAttribute('stroke-width','2');
+  svg.appendChild(outline);
+
+  [['88','285','12','16'],['65','310','10','7'],['105','58','7','10']].forEach(([cx,cy,rx,ry])=>{
+    const el=document.createElementNS(ns,'ellipse');
+    el.setAttribute('cx',cx);el.setAttribute('cy',cy);el.setAttribute('rx',rx);el.setAttribute('ry',ry);
+    el.setAttribute('fill','#F0F8E8');el.setAttribute('stroke','#C8E6A0');el.setAttribute('stroke-width','1.5');
+    svg.appendChild(el);
+  });
+
+  CITY_KEYS.forEach(key=>{
+    const c=CITIES[key];
+    const g=document.createElementNS(ns,'g');g.setAttribute('id','cg-'+key);
+
+    const glow=document.createElementNS(ns,'circle');
+    glow.setAttribute('id','cglow-'+key);glow.setAttribute('cx',c.x);glow.setAttribute('cy',c.y);
+    glow.setAttribute('r','14');glow.setAttribute('fill',c.color);glow.setAttribute('opacity','0');
+    g.appendChild(glow);
+
+    const dot=document.createElementNS(ns,'circle');
+    dot.setAttribute('id','cdot-'+key);dot.setAttribute('cx',c.x);dot.setAttribute('cy',c.y);
+    dot.setAttribute('r','7');dot.setAttribute('fill',c.color);dot.setAttribute('opacity','0.4');
+    dot.setAttribute('stroke','#fff');dot.setAttribute('stroke-width','1.5');
+    g.appendChild(dot);
+
+    const txt=document.createElementNS(ns,'text');
+    txt.setAttribute('x',c.x);txt.setAttribute('y',c.y+18);txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('font-size','6');txt.setAttribute('fill','#5A4040');
+    txt.setAttribute('font-family','Nunito,sans-serif');txt.setAttribute('font-weight','700');
+    txt.textContent=c.name.replace('（馬祖）','');
+    g.appendChild(txt);
+
+    g.addEventListener('mouseenter',ev=>showTip(key,ev));
+    g.addEventListener('mousemove',moveTip);
+    g.addEventListener('mouseleave',hideTip);
+    svg.appendChild(g);
+  });
+  document.getElementById('svgWrap').innerHTML='';
+  document.getElementById('svgWrap').appendChild(svg);
+}
+
+function renderMap(){
+  const vals=Object.values(cityCounts);const max=vals.length?Math.max(...vals):1;
+  CITY_KEYS.forEach(key=>{
+    const v=cityCounts[key]||0,ratio=v/Math.max(max,1);
+    const dot=document.getElementById('cdot-'+key),glow=document.getElementById('cglow-'+key);
+    if(dot){dot.setAttribute('r',(5+ratio*14).toFixed(1));dot.setAttribute('opacity',(0.3+ratio*0.7).toFixed(2));}
+    if(glow){glow.setAttribute('r',(11+ratio*14).toFixed(1));glow.setAttribute('opacity',(ratio*0.28).toFixed(2));}
+  });
+}
+function renderMapStats(){
+  const active=Object.values(cityCounts).filter(v=>v>0).length;
+  document.getElementById('map-total-city').textContent=active;
+  const sorted=Object.entries(cityCounts).sort((a,b)=>b[1]-a[1]);
+  const top=sorted[0];
+  document.getElementById('map-top-city').textContent=top&&CITIES[top[0]]?CITIES[top[0]].name:'—';
+  document.getElementById('map-total-checkins').textContent=Object.values(cityCounts).reduce((s,v)=>s+v,0);
+}
+const tip=document.getElementById('mapTooltip');
+function showTip(key,ev){const v=cityCounts[key]||0;tip.textContent=`${CITIES[key].name}：${v} 次簽到`;tip.style.display='block';moveTip(ev);}
+function moveTip(ev){tip.style.left=(ev.clientX+14)+'px';tip.style.top=(ev.clientY-10)+'px';}
+function hideTip(){tip.style.display='none';}
+
+// ── QUOTES ─────────────────────────────────────────────────────
 const QUOTES=[
   {text:'每一天的努力，都是成就未來的你！',author:'— 好習慣養成站'},
   {text:'持之以恆，是所有成功的秘訣。',author:'— 古老智慧'},
@@ -602,43 +1449,54 @@ const QUOTES=[
   {text:'你比你想象的更強大，繼續前行！',author:'— 自我突破'},
   {text:'最好的時間是現在，最好的你在路上。',author:'— 今日格言'},
 ];
-function setDailyQuote(){const d=new Date();const idx=(d.getDate()+d.getMonth())%QUOTES.length;const q=QUOTES[idx];document.getElementById('quoteText').textContent='「'+q.text+'」';document.getElementById('quoteAuthor').textContent=q.author;}
+function setDailyQuote(){const d=new Date();const q=QUOTES[(d.getDate()+d.getMonth())%QUOTES.length];document.getElementById('quoteText').textContent='「'+q.text+'」';document.getElementById('quoteAuthor').textContent=q.author;}
 
+// ── DISCUSSION ─────────────────────────────────────────────────
 const BAD_WORDS=['爛','廢','蠢','笨','去死','垃圾','廢物','白痴','混蛋'];
 function filterMsg(t){BAD_WORDS.forEach(w=>{t=t.replace(new RegExp(w,'g'),'**');});return t;}
-
 async function sendMessage(){
-  const input=document.getElementById('discussInput');const raw=input.value.trim();
-  if(!raw||!db)return;const text=filterMsg(raw);
-  const msg={name:username||'匿名用戶',emoji:userEmoji,text,ts:Date.now()};
-  input.value='';
+  const inp=document.getElementById('discussInput');const raw=inp.value.trim();
+  if(!raw||!db||!userId)return;
+  inp.value='';
+  const msg={name:username||'匿名用戶',photo:userPhotoURL||'',text:filterMsg(raw),ts:Date.now()};
   try{await _push(_ref(db,'discussions'),msg);}catch(e){showToast('❌ 發送失敗','請重試');}
 }
-
 function renderDiscussions(msgs){
   const el=document.getElementById('discussList');if(!el)return;el.innerHTML='';
   msgs.slice(0,30).forEach(m=>{
     const sec=Math.floor((Date.now()-(m.ts||Date.now()))/1000);
     const ago=sec<60?'剛剛':sec<3600?Math.floor(sec/60)+'分鐘前':sec<86400?Math.floor(sec/3600)+'小時前':Math.floor(sec/86400)+'天前';
+    const av=m.photo
+      ?`<img class="discuss-avatar-sm" src="${esc(m.photo)}" referrerpolicy="no-referrer">`
+      :`<div class="discuss-avatar-emoji">💬</div>`;
     const div=document.createElement('div');div.className='discuss-item';
-    div.innerHTML=`<div class="discuss-avatar" style="background:#FFF0E0">${m.emoji}</div><div class="discuss-content"><div class="discuss-name">${String(m.name).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div><div class="discuss-text">${String(m.text).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div><div class="discuss-time">${ago}</div></div>`;
+    div.innerHTML=`${av}<div class="discuss-content"><div class="discuss-name">${esc(m.name)}</div><div class="discuss-text">${esc(m.text)}</div><div class="discuss-time">${ago}</div></div>`;
     el.appendChild(div);
   });
 }
 
-function updateUsername(val){username=val;localStorage.setItem('username',val);if(db&&val){_update(_ref(db,`users/${userId}/meta`),{name:val});}}
+// ── USERNAME ───────────────────────────────────────────────────
+function updateUsername(val){
+  username=val;
+  if(db&&userId)_update(_ref(db,`users/${userId}/meta`),{name:val});
+}
 
+// ── NAV ────────────────────────────────────────────────────────
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   document.getElementById('tab-'+id).classList.add('active');
-  if(id==='map'){setDailyQuote();renderMap();}
-  if(id==='rank'){renderLeaderboard();}
+  if(id==='map'){setDailyQuote();renderMap();renderMapStats();}
+  if(id==='rank'){renderGlobalLeaderboard();renderCityLeaderboard();}
 }
 
-document.getElementById('usernameInput').value=username;
-setDailyQuote();renderCalendar();updateCheckinUI();
+// ── HELPERS ────────────────────────────────────────────────────
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── INIT ───────────────────────────────────────────────────────
+setDailyQuote();
+buildTaiwanSVG();
 document.getElementById('discussInput').addEventListener('keydown',e=>{if(e.key==='Enter')sendMessage();});
 </script>
 </body>
